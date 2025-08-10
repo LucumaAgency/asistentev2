@@ -174,7 +174,12 @@ function App() {
         })));
       }
     } catch (err) {
-      console.log('No hay conversación previa o error al cargar:', err);
+      // Es normal que no haya conversación previa en la primera carga
+      if (err.response && err.response.status === 404) {
+        console.log('Nueva sesión - no hay conversación previa');
+      } else {
+        console.error('Error al cargar conversación:', err);
+      }
     }
   };
 
