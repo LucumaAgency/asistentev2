@@ -354,7 +354,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>AI Assistant v2</h1>
+            <h1>AI Assistant v2.1</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <div className="user-menu">
