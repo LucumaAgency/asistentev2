@@ -8,13 +8,24 @@ const Login = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   
   // Obtener el Client ID desde variable de entorno
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  // IMPORTANTE: Este es el Client ID correcto para producción
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '606663436324-dlr0e9c22kel23s9l4eaum6ivculok1s.apps.googleusercontent.com';
   
   // Log para debug
   console.log('Google Client ID:', googleClientId);
   
-  if (!googleClientId || googleClientId === 'your-client-id.apps.googleusercontent.com') {
+  if (!googleClientId || googleClientId.includes('your-client-id')) {
     console.error('Google Client ID no está configurado correctamente');
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <div className="error-message">
+            Error: Google OAuth no está configurado correctamente.
+            Por favor, contacta al administrador.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
