@@ -38,27 +38,33 @@ jobs:
 
     - name: Create or update production branch
       run: |
-        # Check if production branch exists
-        if git show-ref --verify --quiet refs/heads/production; then
-          echo "Production branch exists, updating..."
+        # Fetch all branches
+        git fetch origin
+        
+        # Check if production branch exists remotely
+        if git ls-remote --exit-code --heads origin production; then
+          echo "Production branch exists, checking out..."
           git checkout production
-          git merge main --no-edit
+          git pull origin production
+          
+          # Merge changes from main
+          git merge main --no-edit --allow-unrelated-histories || true
         else
           echo "Creating production branch..."
           git checkout -b production
         fi
-
-    - name: Copy build files
-      run: |
-        # Ensure dist directory exists in production branch
-        mkdir -p frontend/dist
         
-        # Copy built files
-        cp -r frontend/dist/* frontend/dist/ 2>/dev/null || true
+        # Ensure the dist folder is tracked
+        echo "Current directory structure:"
+        ls -la frontend/
 
     - name: Commit and push to production
       run: |
+        # Add all files including the built dist folder
         git add -A
+        
+        # Force add dist folder (in case it's in gitignore)
+        git add -f frontend/dist
         
         # Check if there are changes to commit
         if git diff --staged --quiet; then
@@ -67,10 +73,12 @@ jobs:
           git commit -m "Deploy: Build frontend from main branch
         
         Built from commit: ${{ github.sha }}
-        Commit message: ${{ github.event.head_commit.message }}"
+        Commit message: ${{ github.event.head_commit.message }}
+        Build time: $(date)"
         fi
         
-        git push origin production --force
+        # Push to production branch
+        git push origin production --force-with-lease || git push origin production --force
 
     - name: Summary
       run: |
@@ -88,3 +96,5 @@ jobs:
         echo "1. Plesk will detect changes in production branch" >> $GITHUB_STEP_SUMMARY
         echo "2. Deploy manually or wait for auto-deploy if configured" >> $GITHUB_STEP_SUMMARY
         echo "3. Run 'NPM install' in Plesk if dependencies changed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Verify build at**: frontend/dist folder in production branch" >> $GITHUB_STEP_SUMMARY
