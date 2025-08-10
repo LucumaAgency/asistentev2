@@ -1,0 +1,91 @@
+name: CI/CD Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Create or update production branch
+      run: |
+        # Check if production branch exists
+        if git show-ref --verify --quiet refs/heads/production; then
+          echo "Production branch exists, updating..."
+          git checkout production
+          git merge main --no-edit
+        else
+          echo "Creating production branch..."
+          git checkout -b production
+        fi
+
+    - name: Copy build files
+      run: |
+        # Ensure dist directory exists in production branch
+        mkdir -p frontend/dist
+        
+        # Copy built files
+        cp -r frontend/dist/* frontend/dist/ 2>/dev/null || true
+
+    - name: Commit and push to production
+      run: |
+        git add -A
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Deploy: Build frontend from main branch
+        
+        Built from commit: ${{ github.sha }}
+        Commit message: ${{ github.event.head_commit.message }}"
+        fi
+        
+        git push origin production --force
+
+    - name: Summary
+      run: |
+        echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: main → production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Message**: ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Author**: ${{ github.event.head_commit.author.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Frontend built and pushed to production branch" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📝 **Next steps**:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Plesk will detect changes in production branch" >> $GITHUB_STEP_SUMMARY
+        echo "2. Deploy manually or wait for auto-deploy if configured" >> $GITHUB_STEP_SUMMARY
+        echo "3. Run 'NPM install' in Plesk if dependencies changed" >> $GITHUB_STEP_SUMMARY
