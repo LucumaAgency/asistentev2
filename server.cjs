@@ -236,7 +236,7 @@ app.get('/api/conversations/:session_id', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, session_id, audio_data, conversation_history = [], system_prompt } = req.body;
+    const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
 
     if (!message || !session_id) {
       return res.status(400).json({ error: 'message y session_id son requeridos' });
@@ -294,11 +294,58 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    let contextMessages = [];
+    
+    // Si se solicita contexto del modo, obtener todos los chats de ese modo
+    if (mode_context && mode_id) {
+      try {
+        if (useDatabase) {
+          // Obtener todas las sesiones del modo
+          const [sessions] = await db.execute(
+            'SELECT chat_id FROM chat_sessions WHERE mode_id = ? ORDER BY created_at DESC LIMIT 10',
+            [mode_id]
+          );
+          
+          // Para cada sesión, obtener sus mensajes
+          for (const session of sessions) {
+            // Buscar conversación asociada
+            const [conversations] = await db.execute(
+              `SELECT * FROM conversations WHERE metadata LIKE ?`,
+              [`%"chat_id":"${session.chat_id}"%`]
+            );
+            
+            if (conversations.length > 0) {
+              const [msgs] = await db.execute(
+                'SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 20',
+                [conversations[0].id]
+              );
+              
+              if (msgs.length > 0) {
+                // Agregar resumen del chat al contexto
+                const chatSummary = msgs.slice(0, 4).map(m => 
+                  `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content.substring(0, 100)}...`
+                ).join('\n');
+                
+                contextMessages.push({
+                  role: 'system',
+                  content: `[Contexto de chat anterior en esta categoría]:\n${chatSummary}\n---`
+                });
+              }
+            }
+          }
+        }
+      } catch (contextError) {
+        console.log('Error obteniendo contexto del modo:', contextError);
+        // Continuar sin contexto si hay error
+      }
+    }
+    
     const messages = [
       { 
         role: 'system', 
         content: system_prompt || 'Eres un asistente de IA útil y amigable. Responde en el mismo idioma que el usuario.'
       },
+      ...contextMessages, // Agregar mensajes de contexto
       ...conversation_history.map(msg => ({
         role: msg.role,
         content: msg.content
