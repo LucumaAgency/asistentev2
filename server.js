@@ -116,13 +116,13 @@ async function initDatabase() {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS chat_sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        session_id VARCHAR(255) NOT NULL,
-        mode_id VARCHAR(255),
-        chat_title VARCHAR(255),
+        chat_id VARCHAR(255) UNIQUE NOT NULL,
+        mode_id VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (mode_id) REFERENCES modes(mode_id) ON DELETE SET NULL,
-        INDEX idx_session_mode (session_id, mode_id)
+        INDEX idx_mode_id (mode_id),
+        INDEX idx_created_at (created_at)
       )
     `);
 
