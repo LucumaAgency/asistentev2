@@ -59,6 +59,31 @@ body {
   border-color: #407BFF;
 }
 
+.new-chat-button {
+  background: linear-gradient(135deg, #407BFF 0%, #5B8DEF 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-left: auto;
+  margin-right: 10px;
+  font-family: 'Montserrat', sans-serif;
+  white-space: nowrap;
+}
+
+.new-chat-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(64, 123, 255, 0.3);
+}
+
+.new-chat-button:active {
+  transform: translateY(0);
+}
+
 .header > div {
   flex: 1;
   text-align: center;
@@ -617,6 +642,12 @@ body {
   
   .header h1 {
     font-size: 1.2rem;
+  }
+  
+  .new-chat-button {
+    padding: 8px 12px;
+    font-size: 12px;
+    margin-right: 5px;
   }
   
   .menu-toggle {
