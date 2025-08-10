@@ -632,6 +632,16 @@ app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
   }
 });
 
+// Importar y configurar rutas de autenticación
+const createAuthRoutes = require('./routes/auth.cjs');
+const { optionalAuth } = require('./middleware/auth.cjs');
+
+// Esta función se llamará después de inicializar la BD
+const setupAuthRoutes = () => {
+  const authRoutes = createAuthRoutes(db);
+  app.use('/api/auth', authRoutes);
+};
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 });
@@ -639,6 +649,9 @@ app.get('*', (req, res) => {
 async function startServer() {
   try {
     await initDatabase();
+    
+    // Configurar rutas de autenticación después de inicializar DB
+    setupAuthRoutes();
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
