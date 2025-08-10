@@ -439,10 +439,10 @@ function App() {
           </form>
           <div className="controls">
             <button onClick={clearConversation} className="clear-button">
-              Clear
+              Limpiar
             </button>
             <button onClick={stopSpeaking} className="clear-button">
-              Stop voice
+              Detener voz
             </button>
             <label className="voice-toggle">
               <input 
