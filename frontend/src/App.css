@@ -396,6 +396,23 @@ body {
   font-weight: 500;
 }
 
+/* Context Toggle (Memory) */
+.context-toggle {
+  margin-left: 10px;
+}
+
+.context-toggle .toggle-slider {
+  background: #2a2d30;
+}
+
+.context-toggle input:checked + .toggle-slider {
+  background: rgba(138, 43, 226, 0.3);
+}
+
+.context-toggle input:checked + .toggle-slider::before {
+  background: #8a2be2;
+}
+
 .status {
   text-align: center;
   padding: 10px;

@@ -19,6 +19,7 @@ function App() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceInitialized, setVoiceInitialized] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState('');
+  const [contextEnabled, setContextEnabled] = useState(false);
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -228,7 +229,9 @@ function App() {
         message: inputMessage,
         session_id: sessionId,
         conversation_history: messages,
-        system_prompt: currentMode?.prompt || 'Eres un asistente virtual útil y amigable.'
+        system_prompt: currentMode?.prompt || 'Eres un asistente virtual útil y amigable.',
+        mode_context: contextEnabled,
+        mode_id: currentMode?.id
       });
 
       const assistantMessage = {
@@ -507,7 +510,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v2.7</h1>
+            <h1>Asistente IA v2.8</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <button 
@@ -636,6 +639,21 @@ function App() {
               />
               <span className="toggle-slider"></span>
               <span className="toggle-label">Leer respuestas</span>
+            </label>
+            <label className="voice-toggle context-toggle">
+              <input 
+                type="checkbox" 
+                checked={contextEnabled} 
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setContextEnabled(enabled);
+                  console.log('Memoria contextual:', enabled ? 'Activada' : 'Desactivada');
+                }}
+              />
+              <span className="toggle-slider"></span>
+              <span className="toggle-label" title={`Incluir contexto de todos los chats en ${currentMode?.name || 'esta categoría'}`}>
+                🧠 Memoria
+              </span>
             </label>
           </div>
         </div>
