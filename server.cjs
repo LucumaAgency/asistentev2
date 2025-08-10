@@ -236,7 +236,7 @@ app.get('/api/conversations/:session_id', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, session_id, audio_data, conversation_history = [] } = req.body;
+    const { message, session_id, audio_data, conversation_history = [], system_prompt } = req.body;
 
     if (!message || !session_id) {
       return res.status(400).json({ error: 'message y session_id son requeridos' });
@@ -297,7 +297,7 @@ app.post('/api/chat', async (req, res) => {
     const messages = [
       { 
         role: 'system', 
-        content: 'Eres un asistente de IA útil y amigable. Responde en el mismo idioma que el usuario.'
+        content: system_prompt || 'Eres un asistente de IA útil y amigable. Responde en el mismo idioma que el usuario.'
       },
       ...conversation_history.map(msg => ({
         role: msg.role,
