@@ -330,11 +330,19 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Overlay para móviles cuando el sidebar está abierto */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+      
       <Sidebar 
         onModeChange={handleModeChange}
         currentMode={currentMode}
         messages={messages}
         user={user}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
       
       <div className="app">

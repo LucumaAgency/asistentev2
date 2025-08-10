@@ -7,6 +7,30 @@
   flex-direction: column;
   overflow: hidden;
   font-family: 'Montserrat', sans-serif;
+  position: relative;
+}
+
+.sidebar-close {
+  display: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid rgba(64, 123, 255, 0.3);
+  border-radius: 50%;
+  color: #407BFF;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.sidebar-close:hover {
+  background: rgba(64, 123, 255, 0.1);
+  border-color: #407BFF;
+  transform: rotate(90deg);
 }
 
 .sidebar-section {
@@ -48,11 +72,20 @@
   box-shadow: 0 2px 8px rgba(64, 123, 255, 0.4);
 }
 
-.modes-list, .chats-list {
+.modes-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 300px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 400px);
+  min-height: 200px;
   overflow-y: auto;
 }
 
@@ -298,21 +331,85 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 280px;
+  }
+  
+  .modes-list {
+    max-height: 200px;
+  }
+  
+  .chats-list {
+    max-height: calc(100vh - 450px);
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
-    width: 250px;
+    width: 260px;
+    position: fixed;
+    left: -260px;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  .sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modes-list {
+    max-height: 180px;
+  }
+  
+  .chats-list {
+    max-height: calc(100vh - 480px);
+  }
+  
+  .sidebar-section {
+    padding: 15px;
+  }
+  
+  .mode-name, .chat-title {
+    font-size: 13px;
   }
 }
 
 @media (max-width: 600px) {
   .sidebar {
-    position: fixed;
+    width: 100%;
     left: -100%;
-    z-index: 1000;
-    transition: left 0.3s;
   }
   
   .sidebar.open {
     left: 0;
+  }
+  
+  .modes-list {
+    max-height: 150px;
+  }
+  
+  .chats-list {
+    max-height: calc(100vh - 500px);
+    min-height: 150px;
+  }
+  
+  .sidebar-section {
+    padding: 12px;
+  }
+  
+  .section-header h3 {
+    font-size: 13px;
+  }
+  
+  .mode-item, .chat-item {
+    padding: 8px 10px;
   }
 }
