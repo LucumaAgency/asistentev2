@@ -416,38 +416,208 @@ body {
   font-family: 'Montserrat', sans-serif;
 }
 
-@media (max-width: 768px) {
+/* Overlay para móviles */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* Tablet landscape */
+@media (max-width: 1024px) {
   .app {
-    padding: 10px;
+    padding: 15px;
+  }
+  
+  .chat-container {
+    max-height: calc(100vh - 180px);
+  }
+  
+  .header h1 {
+    font-size: 1.8rem;
+  }
+}
+
+/* Tablet portrait y móviles grandes */
+@media (max-width: 768px) {
+  .app-container {
+    position: relative;
+  }
+  
+  .app {
+    padding: 12px;
+    width: 100%;
+  }
+
+  .header {
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .header > div {
+    text-align: left;
+    flex: 1;
   }
 
   .header h1 {
     font-size: 1.5rem;
+    margin-bottom: 3px;
+  }
+  
+  .header p {
+    font-size: 0.8rem;
   }
 
   .message-content {
     max-width: 85%;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 
   .chat-container {
     border-radius: 15px;
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 140px);
   }
   
   .menu-toggle {
     display: block;
+    flex-shrink: 0;
+  }
+  
+  .input-container {
+    padding: 15px;
+  }
+  
+  .message-input {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  .send-button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .voice-button {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  
+  .voice-toggle {
+    gap: 8px;
+  }
+  
+  .toggle-label {
+    font-size: 12px;
+  }
+  
+  .sidebar-overlay.active {
+    display: block;
   }
 }
 
+/* Móviles medianos */
 @media (max-width: 600px) {
-  .sidebar {
-    position: fixed;
-    left: -100%;
-    z-index: 1000;
-    transition: left 0.3s;
+  .app {
+    padding: 10px;
   }
   
-  .sidebar.open {
-    left: 0;
+  .header {
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+  }
+  
+  .header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .header p {
+    display: none;
+  }
+  
+  .chat-container {
+    border-radius: 12px;
+    max-height: calc(100vh - 120px);
+  }
+  
+  .messages-container {
+    padding: 15px;
+  }
+  
+  .message-content {
+    max-width: 90%;
+    font-size: 13px;
+  }
+  
+  .input-form {
+    gap: 8px;
+  }
+  
+  .clear-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Móviles pequeños */
+@media (max-width: 480px) {
+  .app {
+    padding: 8px;
+  }
+  
+  .header h1 {
+    font-size: 1.2rem;
+  }
+  
+  .menu-toggle {
+    font-size: 20px;
+    padding: 6px 10px;
+  }
+  
+  .chat-container {
+    border-radius: 10px;
+    max-height: calc(100vh - 110px);
+  }
+  
+  .message {
+    margin-bottom: 15px;
+  }
+  
+  .message-content {
+    padding: 8px 12px;
+    border-radius: 14px;
+  }
+  
+  .input-container {
+    padding: 12px;
+  }
+  
+  .message-input {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  
+  .voice-button {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .send-button {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 }

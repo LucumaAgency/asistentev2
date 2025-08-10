@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
 
-const Sidebar = ({ onModeChange, currentMode, messages }) => {
+const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
   const [modes, setModes] = useState([]);
   const [chats, setChats] = useState({});
   const [isAddingMode, setIsAddingMode] = useState(false);
@@ -320,7 +320,7 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
 
   if (isLoading) {
     return (
-      <div className="sidebar">
+      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-section">
           <p>Cargando...</p>
         </div>
@@ -329,7 +329,16 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
   }
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      {/* Botón de cierre para móviles */}
+      <button 
+        className="sidebar-close"
+        onClick={onClose}
+        aria-label="Cerrar menú"
+      >
+        ×
+      </button>
+      
       {/* Sección de Modos */}
       <div className="sidebar-section">
         <div className="section-header">
@@ -348,7 +357,13 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
             <div 
               key={mode.id} 
               className={`mode-item ${currentMode?.id === mode.id ? 'active' : ''}`}
-              onClick={() => onModeChange(mode)}
+              onClick={() => {
+                onModeChange(mode);
+                // Cerrar sidebar en móviles
+                if (window.innerWidth <= 768 && onClose) {
+                  onClose();
+                }
+              }}
             >
               <div className="mode-info">
                 <span className="mode-name">{mode.name}</span>
