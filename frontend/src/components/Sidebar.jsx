@@ -298,10 +298,14 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           onModeChange(updatedModes[0]);
         }
         
-        // Eliminar chats asociados
+        // Eliminar chats asociados y guardar en localStorage
         const newChats = { ...chats };
         delete newChats[modeId];
         setChats(newChats);
+        
+        // Guardar en localStorage
+        localStorage.setItem('assistantChats', JSON.stringify(newChats));
+        console.log('✅ Modo y sus chats eliminados de localStorage');
       } catch (error) {
         console.error('Error eliminando modo:', error);
         alert('Error al eliminar el modo');
@@ -310,17 +314,47 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
   };
 
   const handleDeleteChat = async (chatId, modeId) => {
+    console.log(`Eliminando chat ${chatId} del modo ${modeId}`);
+    
     try {
-      await axios.delete(`/api/chat-sessions/${chatId}`);
-      
+      // Primero actualizar el estado y localStorage
       setChats(prevChats => {
         const newChats = { ...prevChats };
         if (newChats[modeId]) {
-          newChats[modeId] = newChats[modeId].filter(chat => chat.id !== chatId);
+          // Filtrar el chat eliminado
+          newChats[modeId] = newChats[modeId].filter(chat => 
+            chat.id !== chatId && chat.sessionId !== chatId
+          );
+          
+          // IMPORTANTE: Guardar inmediatamente en localStorage
+          try {
+            localStorage.setItem('assistantChats', JSON.stringify(newChats));
+            console.log('✅ Chat eliminado de localStorage');
+            
+            // Verificar que se eliminó correctamente
+            const verification = localStorage.getItem('assistantChats');
+            if (verification) {
+              const parsed = JSON.parse(verification);
+              const stillExists = parsed[modeId]?.find(c => c.id === chatId || c.sessionId === chatId);
+              if (!stillExists) {
+                console.log('✅ Verificado: Chat eliminado correctamente');
+              } else {
+                console.error('❌ Error: El chat aún existe después de eliminar');
+              }
+            }
+          } catch (saveError) {
+            console.error('❌ Error guardando en localStorage:', saveError);
+          }
         }
         return newChats;
       });
+      
       setChatMenuOpen(null);
+      
+      // Intentar eliminar de la BD (no crítico)
+      axios.delete(`/api/chat-sessions/${chatId}`).catch(error => {
+        console.log('BD no disponible para eliminar, solo eliminado de localStorage');
+      });
     } catch (error) {
       console.error('Error eliminando chat:', error);
       alert('Error al eliminar el chat');
@@ -347,6 +381,10 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           newChats[toModeId] = [];
         }
         newChats[toModeId].unshift(chat);
+        
+        // Guardar en localStorage
+        localStorage.setItem('assistantChats', JSON.stringify(newChats));
+        console.log('✅ Chat movido y guardado en localStorage');
         
         return newChats;
       });
