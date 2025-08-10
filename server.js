@@ -191,10 +191,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Rutas de autenticación
-const authRoutes = createAuthRoutes(db);
-app.use('/api/auth', authRoutes);
-
 // Endpoints para modos (con autenticación opcional)
 app.get('/api/modes', optionalAuth, async (req, res) => {
   try {
@@ -786,6 +782,13 @@ app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
   }
 });
 
+// Rutas de autenticación - se configuran después de inicializar DB
+// pero se registran aquí para que estén disponibles
+const setupAuthRoutes = () => {
+  const authRoutes = createAuthRoutes(db);
+  app.use('/api/auth', authRoutes);
+};
+
 // Catch-all route for SPA - MUST be last
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'frontend', 'dist', 'index.html'));
@@ -807,6 +810,9 @@ async function startServer() {
   console.log('========================================');
   
   await initDatabase();
+  
+  // Configurar rutas de autenticación después de inicializar DB
+  setupAuthRoutes();
   
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
