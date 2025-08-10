@@ -27,6 +27,30 @@ function App() {
   const silenceTimerRef = useRef(null);
 
   useEffect(() => {
+    // Verificar soporte de síntesis de voz
+    if ('speechSynthesis' in window) {
+      console.log('Síntesis de voz soportada');
+      
+      // Cargar voces disponibles
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
+        console.log('Voces en español disponibles:', spanishVoices.length);
+        if (spanishVoices.length > 0) {
+          console.log('Primera voz en español:', spanishVoices[0].name);
+        }
+      };
+      
+      // Las voces pueden cargarse asíncronamente
+      if (window.speechSynthesis.getVoices().length > 0) {
+        loadVoices();
+      } else {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    } else {
+      console.warn('Síntesis de voz no soportada en este navegador');
+    }
+    
     // Verificar si hay token guardado
     const token = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('user');
@@ -213,12 +237,38 @@ function App() {
       setMessages(prev => [...prev, assistantMessage]);
       
       // Solo leer la respuesta si está habilitado
-      if (voiceEnabled && synthRef.current && 'speechSynthesis' in window) {
+      if (voiceEnabled && 'speechSynthesis' in window) {
+        console.log('Intentando leer respuesta:', response.data.message.substring(0, 50) + '...');
+        
+        // Cancelar cualquier lectura en curso
+        window.speechSynthesis.cancel();
+        
+        // Crear nueva utterance
         const utterance = new SpeechSynthesisUtterance(response.data.message);
         utterance.lang = 'es-ES';
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
-        synthRef.current.speak(utterance);
+        utterance.volume = 1.0;
+        
+        // Intentar obtener una voz en español
+        const voices = window.speechSynthesis.getVoices();
+        const spanishVoice = voices.find(voice => 
+          voice.lang === 'es-ES' || voice.lang === 'es-MX' || voice.lang.startsWith('es')
+        );
+        if (spanishVoice) {
+          utterance.voice = spanishVoice;
+          console.log('Usando voz:', spanishVoice.name);
+        }
+        
+        // Agregar event listeners para debug
+        utterance.onstart = () => console.log('Iniciando lectura de voz');
+        utterance.onend = () => console.log('Lectura de voz finalizada');
+        utterance.onerror = (event) => console.error('Error en lectura de voz:', event);
+        
+        // Pequeño delay para asegurar que el sistema esté listo
+        setTimeout(() => {
+          window.speechSynthesis.speak(utterance);
+        }, 100);
       }
     } catch (err) {
       console.error('Error sending message:', err);
@@ -280,8 +330,9 @@ function App() {
   };
 
   const stopSpeaking = () => {
-    if (synthRef.current) {
-      synthRef.current.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      console.log('Lectura de voz detenida');
     }
   };
 
@@ -462,7 +513,14 @@ function App() {
               <input 
                 type="checkbox" 
                 checked={voiceEnabled} 
-                onChange={(e) => setVoiceEnabled(e.target.checked)}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setVoiceEnabled(enabled);
+                  console.log('Lectura de respuestas:', enabled ? 'Activada' : 'Desactivada');
+                  if (!enabled && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                  }
+                }}
               />
               <span className="toggle-slider"></span>
               <span className="toggle-label">Leer respuestas</span>
