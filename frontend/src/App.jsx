@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
+import Sidebar from './components/Sidebar';
 import './App.css';
 
 function App() {
@@ -12,6 +13,8 @@ function App() {
   const [sessionId, setSessionId] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState('');
+  const [currentMode, setCurrentMode] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -21,6 +24,21 @@ function App() {
     const newSessionId = localStorage.getItem('sessionId') || uuidv4();
     localStorage.setItem('sessionId', newSessionId);
     setSessionId(newSessionId);
+    
+    // Cargar el modo por defecto
+    const savedModes = localStorage.getItem('assistantModes');
+    if (savedModes) {
+      const modes = JSON.parse(savedModes);
+      setCurrentMode(modes[0]);
+    } else {
+      const defaultMode = {
+        id: 'default',
+        name: 'General',
+        prompt: 'Eres un asistente virtual útil y amigable.'
+      };
+      setCurrentMode(defaultMode);
+      localStorage.setItem('assistantModes', JSON.stringify([defaultMode]));
+    }
     
     checkConnection();
     loadConversation(newSessionId);
@@ -103,7 +121,8 @@ function App() {
       const response = await axios.post('/api/chat', {
         message: inputMessage,
         session_id: sessionId,
-        conversation_history: messages
+        conversation_history: messages,
+        system_prompt: currentMode?.prompt || 'Eres un asistente virtual útil y amigable.'
       });
 
       const assistantMessage = {
@@ -163,6 +182,12 @@ function App() {
     }
   };
 
+  const handleModeChange = (mode) => {
+    setCurrentMode(mode);
+    // Opcionalmente limpiar la conversación al cambiar de modo
+    clearConversation();
+  };
+
   const stopSpeaking = () => {
     if (synthRef.current) {
       synthRef.current.cancel();
@@ -170,13 +195,28 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1>AI Assistant</h1>
-        <p>Intelligent voice-enabled chat interface</p>
-      </header>
+    <div className="app-container">
+      <Sidebar 
+        onModeChange={handleModeChange}
+        currentMode={currentMode}
+        messages={messages}
+      />
+      
+      <div className="app">
+        <header className="header">
+          <button 
+            className="menu-toggle"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            ☰
+          </button>
+          <div>
+            <h1>AI Assistant</h1>
+            <p>Modo: {currentMode?.name || 'General'}</p>
+          </div>
+        </header>
 
-      <div className="chat-container">
+        <div className="chat-container">
         <div className="messages-container">
           {messages.length === 0 ? (
             <div className="empty-state">
@@ -248,12 +288,13 @@ function App() {
         </div>
       </div>
 
-      <div className={`status ${isConnected ? 'connected' : 'error'}`}>
-        {error ? (
-          <span>• {error}</span>
-        ) : (
-          <span>{isConnected ? '• Connected' : '• Disconnected'}</span>
-        )}
+        <div className={`status ${isConnected ? 'connected' : 'error'}`}>
+          {error ? (
+            <span>• {error}</span>
+          ) : (
+            <span>{isConnected ? '• Connected' : '• Disconnected'}</span>
+          )}
+        </div>
       </div>
     </div>
   );

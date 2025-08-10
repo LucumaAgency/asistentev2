@@ -1,0 +1,243 @@
+.sidebar {
+  width: 300px;
+  height: 100vh;
+  background: #1a1b1d;
+  border-right: 1px solid rgba(64, 123, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.sidebar-section {
+  padding: 20px;
+  border-bottom: 1px solid rgba(64, 123, 255, 0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.section-header h3 {
+  color: #407BFF;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.add-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #407BFF;
+  color: #151718;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.add-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(64, 123, 255, 0.4);
+}
+
+.modes-list, .chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.mode-item, .chat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #202224;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.mode-item:hover, .chat-item:hover {
+  background: #252729;
+  border-color: rgba(64, 123, 255, 0.2);
+}
+
+.mode-item.active, .chat-item.active {
+  background: rgba(64, 123, 255, 0.1);
+  border-color: #407BFF;
+}
+
+.mode-info, .chat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mode-name, .chat-title {
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-date {
+  color: #6a6f78;
+  font-size: 11px;
+}
+
+.mode-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-btn, .delete-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.edit-btn:hover {
+  background: rgba(64, 123, 255, 0.2);
+}
+
+.delete-btn:hover {
+  background: rgba(255, 71, 87, 0.2);
+}
+
+.mode-form {
+  margin-top: 15px;
+  padding: 12px;
+  background: #202224;
+  border-radius: 8px;
+  border: 1px solid rgba(64, 123, 255, 0.2);
+}
+
+.mode-input, .mode-textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #151718;
+  border: 1px solid rgba(64, 123, 255, 0.2);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.mode-input:focus, .mode-textarea:focus {
+  border-color: #407BFF;
+}
+
+.mode-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.save-btn, .cancel-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.save-btn {
+  background: #407BFF;
+  color: #151718;
+}
+
+.save-btn:hover {
+  background: #3969e6;
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  background: transparent;
+  color: #6a6f78;
+  border: 1px solid #2a2d30;
+}
+
+.cancel-btn:hover {
+  background: #2a2d30;
+  color: #e0e0e0;
+}
+
+.no-chats {
+  padding: 20px;
+  text-align: center;
+  color: #6a6f78;
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Scrollbar personalizada */
+.modes-list::-webkit-scrollbar,
+.chats-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modes-list::-webkit-scrollbar-track,
+.chats-list::-webkit-scrollbar-track {
+  background: #1a1c1e;
+  border-radius: 3px;
+}
+
+.modes-list::-webkit-scrollbar-thumb,
+.chats-list::-webkit-scrollbar-thumb {
+  background: #2a2d30;
+  border-radius: 3px;
+}
+
+.modes-list::-webkit-scrollbar-thumb:hover,
+.chats-list::-webkit-scrollbar-thumb:hover {
+  background: #407BFF;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 250px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    z-index: 1000;
+    transition: left 0.3s;
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+}

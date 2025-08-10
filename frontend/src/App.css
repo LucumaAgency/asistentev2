@@ -17,30 +17,63 @@ body {
   min-height: 100vh;
 }
 
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .app {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex: 1;
   padding: 20px;
+  overflow: hidden;
 }
 
 .header {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 20px;
   color: #407BFF;
   margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(64, 123, 255, 0.2);
+}
+
+.menu-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(64, 123, 255, 0.3);
+  color: #407BFF;
+  font-size: 24px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.menu-toggle:hover {
+  background: rgba(64, 123, 255, 0.1);
+  border-color: #407BFF;
+}
+
+.header > div {
+  flex: 1;
+  text-align: center;
 }
 
 .header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
+  font-size: 2rem;
+  margin-bottom: 5px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
 }
 
 .header p {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  color: #6a6f78;
 }
 
 .chat-container {
@@ -321,7 +354,7 @@ body {
   }
 
   .header h1 {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
 
   .message-content {
@@ -331,5 +364,22 @@ body {
   .chat-container {
     border-radius: 15px;
     max-height: calc(100vh - 150px);
+  }
+  
+  .menu-toggle {
+    display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    z-index: 1000;
+    transition: left 0.3s;
+  }
+  
+  .sidebar.open {
+    left: 0;
   }
 }
