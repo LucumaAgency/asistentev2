@@ -8,6 +8,8 @@ import OpenAI from 'openai';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { createAuthRoutes } from './routes/auth.js';
+import { authenticateToken, optionalAuth } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -107,9 +109,12 @@ async function initDatabase() {
         mode_id VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(100) NOT NULL,
         prompt TEXT NOT NULL,
+        user_id INT DEFAULT NULL,
+        is_public BOOLEAN DEFAULT FALSE,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_modes (user_id)
       )
     `);
 
@@ -119,10 +124,43 @@ async function initDatabase() {
         chat_id VARCHAR(255) UNIQUE NOT NULL,
         mode_id VARCHAR(255) NOT NULL,
         title VARCHAR(255) NOT NULL,
+        user_id INT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_mode_id (mode_id),
         INDEX idx_created_at (created_at)
+      )
+    `);
+
+    // Crear tablas de usuarios para Google OAuth
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        google_id VARCHAR(255) UNIQUE,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        picture VARCHAR(500),
+        locale VARCHAR(10) DEFAULT 'es',
+        is_active BOOLEAN DEFAULT TRUE,
+        last_login TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_email (email),
+        INDEX idx_google_id (google_id)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        session_token VARCHAR(500) UNIQUE NOT NULL,
+        refresh_token VARCHAR(500),
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_session_token (session_token),
+        INDEX idx_user_id (user_id)
       )
     `);
 
@@ -145,14 +183,32 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Endpoints para modos
-app.get('/api/modes', async (req, res) => {
+// Rutas de autenticación
+const authRoutes = createAuthRoutes(db);
+app.use('/api/auth', authRoutes);
+
+// Endpoints para modos (con autenticación opcional)
+app.get('/api/modes', optionalAuth, async (req, res) => {
   try {
     if (useDatabase) {
-      const [modes] = await db.execute('SELECT * FROM modes WHERE is_active = TRUE ORDER BY created_at');
+      let query = 'SELECT * FROM modes WHERE is_active = TRUE';
+      let params = [];
+      
+      // Si hay usuario autenticado, mostrar sus modos y los públicos
+      if (req.user) {
+        query += ' AND (user_id = ? OR user_id IS NULL OR is_public = TRUE)';
+        params.push(req.user.id);
+      } else {
+        // Si no hay usuario, solo mostrar modos públicos o sin dueño
+        query += ' AND (user_id IS NULL OR is_public = TRUE)';
+      }
+      
+      query += ' ORDER BY created_at';
+      
+      const [modes] = await db.execute(query, params);
       res.json(modes);
     } else {
-      res.json([]); // Por ahora retornar vacío si no hay BD
+      res.json([]);
     }
   } catch (error) {
     console.error('Error obteniendo modos:', error);
