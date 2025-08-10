@@ -8,7 +8,14 @@ const Login = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   
   // Obtener el Client ID desde variable de entorno
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  
+  // Log para debug
+  console.log('Google Client ID:', googleClientId);
+  
+  if (!googleClientId || googleClientId === 'your-client-id.apps.googleusercontent.com') {
+    console.error('Google Client ID no está configurado correctamente');
+  }
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setIsLoading(true);

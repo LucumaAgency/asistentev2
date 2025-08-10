@@ -54,3 +54,8 @@ temp/
 # Package lock files (optional, uncomment if needed)
 # package-lock.json
 # yarn.lock
+# Environment variables
+.env
+.env.local
+frontend/.env
+frontend/.env.local
