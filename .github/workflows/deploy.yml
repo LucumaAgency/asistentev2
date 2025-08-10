@@ -41,6 +41,9 @@ jobs:
         # Fetch all branches
         git fetch origin
         
+        # Stash any local changes first (including built files)
+        git stash --include-untracked
+        
         # Check if production branch exists remotely
         if git ls-remote --exit-code --heads origin production; then
           echo "Production branch exists, checking out..."
@@ -53,6 +56,9 @@ jobs:
           echo "Creating production branch..."
           git checkout -b production
         fi
+        
+        # Pop the stash to restore built files
+        git stash pop || true
         
         # Ensure the dist folder is tracked
         echo "Current directory structure:"
