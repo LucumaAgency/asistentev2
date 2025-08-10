@@ -46,10 +46,16 @@ jobs:
           echo "Production branch exists, checking out..."
           # Force checkout to production branch
           git checkout -f production
+          
+          # Reset to origin/production
           git reset --hard origin/production
           
-          # Merge changes from main, preferring main's version for conflicts
-          git merge main --no-edit --strategy-option=theirs || true
+          # Force merge from main, always taking main's version
+          git merge main --no-edit --strategy=ours || true
+          
+          # Now checkout all files from main to ensure we have the latest code
+          git checkout main -- .
+          
         else
           echo "Creating production branch..."
           git checkout -b production
