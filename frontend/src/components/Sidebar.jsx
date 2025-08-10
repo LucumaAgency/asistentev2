@@ -361,14 +361,17 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Botón de cierre para móviles */}
-      <button 
-        className="sidebar-close"
-        onClick={onClose}
-        aria-label="Cerrar menú"
-      >
-        ✕
-      </button>
+      {/* Header del sidebar con botón de cierre */}
+      <div className="sidebar-header">
+        <h2>Menú</h2>
+        <button 
+          className="sidebar-close"
+          onClick={onClose}
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
+      </div>
       
       {/* Sección de Modos */}
       <div className="sidebar-section">
