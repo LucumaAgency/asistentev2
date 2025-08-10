@@ -20,12 +20,16 @@ const verifyGoogleToken = async (token) => {
     if (!process.env.GOOGLE_CLIENT_ID) {
       throw new Error('GOOGLE_CLIENT_ID no está configurado en las variables de entorno');
     }
+
+    console.log('🔐 Verificando token con Google...');
+    console.log('   Client ID:', process.env.GOOGLE_CLIENT_ID.substring(0, 20) + '...');
     
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
     
+    console.log('✅ Token verificado exitosamente');
     const payload = ticket.getPayload();
     return {
       googleId: payload['sub'],
@@ -148,6 +152,16 @@ const createSession = async (db, userId, token, refreshToken) => {
 };
 
 const createAuthRoutes = (db) => {
+  // Test endpoint para verificar que las rutas están funcionando
+  router.get('/test', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      message: 'Auth routes working',
+      hasDB: db ? true : false,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Login con Google
   router.post('/google', async (req, res) => {
     try {
