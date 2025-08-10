@@ -68,6 +68,11 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
 
   const loadChatSessions = async () => {
     try {
+      // Primero cargar desde localStorage
+      const savedChats = localStorage.getItem('assistantChats');
+      let localChats = savedChats ? JSON.parse(savedChats) : {};
+      
+      // Luego intentar cargar desde BD
       const response = await axios.get('/api/chat-sessions');
       if (response.data && response.data.length > 0) {
         // Organizar chats por modo
@@ -76,22 +81,38 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           if (!chatsByMode[session.mode_id]) {
             chatsByMode[session.mode_id] = [];
           }
+          
+          // Buscar si hay mensajes en localStorage para este chat
+          const localChat = localChats[session.mode_id]?.find(c => c.id === session.chat_id);
+          
           chatsByMode[session.mode_id].push({
             id: session.chat_id,
             title: session.title,
             timestamp: new Date(session.created_at).getTime(),
-            messages: [] // Los mensajes se cargarán cuando se seleccione el chat
+            messages: localChat?.messages || [], // Usar mensajes locales si existen
+            sessionId: localChat?.sessionId || session.chat_id
           });
         });
+        
+        // Combinar con chats locales que no estén en BD
+        Object.keys(localChats).forEach(modeId => {
+          if (!chatsByMode[modeId]) {
+            chatsByMode[modeId] = localChats[modeId];
+          } else {
+            // Agregar chats locales que no estén en BD
+            localChats[modeId].forEach(localChat => {
+              if (!chatsByMode[modeId].find(c => c.id === localChat.id)) {
+                chatsByMode[modeId].push(localChat);
+              }
+            });
+          }
+        });
+        
         setChats(chatsByMode);
-      } else {
-        // Intentar cargar desde localStorage y migrar
-        const savedChats = localStorage.getItem('assistantChats');
-        if (savedChats) {
-          const localChats = JSON.parse(savedChats);
-          setChats(localChats);
-          migrateChatsToDB(localChats);
-        }
+      } else if (localChats && Object.keys(localChats).length > 0) {
+        // Si no hay datos en BD, usar solo localStorage
+        setChats(localChats);
+        migrateChatsToDB(localChats);
       }
     } catch (error) {
       console.error('Error cargando sesiones de chat:', error);
@@ -142,9 +163,9 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
   // Guardar chats cuando los mensajes cambien
   useEffect(() => {
     if (messages.length > 0 && currentMode) {
-      const chatId = Date.now().toString();
-      const chatTitle = messages[0]?.content?.substring(0, 30) + '...' || 'Chat nuevo';
       const sessionId = localStorage.getItem('sessionId');
+      const chatId = sessionId || Date.now().toString(); // Usar sessionId como chatId
+      const chatTitle = messages[0]?.content?.substring(0, 30) + '...' || 'Chat nuevo';
       
       // Guardar en la BD
       const saveChat = async () => {
@@ -167,23 +188,30 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           newChats[currentMode.id] = [];
         }
         
-        // Verificar si ya existe un chat con estos mensajes
-        const existingChat = newChats[currentMode.id].find(
-          chat => chat.messages.length === messages.length && 
-                  chat.messages[0]?.content === messages[0]?.content
+        // Buscar si ya existe un chat con este sessionId
+        const existingChatIndex = newChats[currentMode.id].findIndex(
+          chat => chat.sessionId === sessionId
         );
         
-        if (!existingChat) {
-          const newChat = {
-            id: chatId,
-            title: chatTitle,
-            timestamp: Date.now(),
-            messages: messages,
-            sessionId: sessionId
-          };
+        const newChat = {
+          id: chatId,
+          title: chatTitle,
+          timestamp: Date.now(),
+          messages: messages,
+          sessionId: sessionId
+        };
+        
+        if (existingChatIndex >= 0) {
+          // Actualizar chat existente
+          newChats[currentMode.id][existingChatIndex] = newChat;
+        } else {
+          // Agregar nuevo chat
           newChats[currentMode.id].unshift(newChat);
-          saveChat(); // Guardar en BD
         }
+        
+        // Guardar en localStorage también
+        localStorage.setItem('assistantChats', JSON.stringify(newChats));
+        saveChat(); // Guardar en BD
         
         return newChats;
       });
@@ -489,19 +517,37 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                 className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
                 onClick={async () => {
                   setSelectedChat(chat);
+                  console.log('Chat seleccionado:', chat);
+                  
                   // Cargar los mensajes del chat seleccionado
                   if (onChatSelect) {
-                    try {
-                      const response = await axios.get(`/api/chat-sessions/${chat.id}/messages`);
-                      if (response.data) {
-                        // Pasar también el session_id si existe
-                        onChatSelect(chat.id, response.data.messages, response.data.session_id);
-                      }
-                    } catch (error) {
-                      console.error('Error cargando mensajes del chat:', error);
-                      // Si falla desde la BD, intentar usar los mensajes locales
-                      if (chat.messages && chat.messages.length > 0) {
-                        onChatSelect(chat.id, chat.messages, chat.sessionId);
+                    // Primero intentar con mensajes locales si existen
+                    if (chat.messages && chat.messages.length > 0) {
+                      console.log('Cargando mensajes locales:', chat.messages.length);
+                      onChatSelect(chat.id, chat.messages, chat.sessionId || chat.id);
+                    } else {
+                      // Si no hay mensajes locales, intentar cargar de la BD
+                      try {
+                        console.log('Intentando cargar de BD:', `/api/chat-sessions/${chat.id}/messages`);
+                        const response = await axios.get(`/api/chat-sessions/${chat.id}/messages`);
+                        if (response.data && response.data.messages && response.data.messages.length > 0) {
+                          console.log('Mensajes cargados de BD:', response.data.messages.length);
+                          onChatSelect(chat.id, response.data.messages, response.data.session_id || chat.id);
+                        } else {
+                          console.log('No se encontraron mensajes en BD');
+                          // Intentar cargar desde localStorage como último recurso
+                          const savedChats = localStorage.getItem('assistantChats');
+                          if (savedChats) {
+                            const localChats = JSON.parse(savedChats);
+                            const localChat = localChats[currentMode.id]?.find(c => c.id === chat.id);
+                            if (localChat?.messages) {
+                              console.log('Mensajes recuperados de localStorage:', localChat.messages.length);
+                              onChatSelect(chat.id, localChat.messages, localChat.sessionId || chat.id);
+                            }
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error cargando mensajes del chat:', error);
                       }
                     }
                   }
