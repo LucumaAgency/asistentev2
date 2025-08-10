@@ -340,6 +340,8 @@ function App() {
       localStorage.setItem('sessionId', newSessionId);
       setSessionId(newSessionId);
       setError('');
+      // Limpiar también el último mensaje del asistente
+      setLastAssistantMessage('');
     } catch (err) {
       console.error('Error clearing conversation:', err);
       setError('Error al limpiar la conversación');
