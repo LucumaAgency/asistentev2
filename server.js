@@ -516,6 +516,212 @@ app.delete('/api/conversations/:session_id', async (req, res) => {
   }
 });
 
+// ======== MODES ENDPOINTS ========
+// Get all modes
+app.get('/api/modes', async (req, res) => {
+  try {
+    if (useDatabase) {
+      const [modes] = await db.execute(
+        'SELECT * FROM modes WHERE is_active = TRUE ORDER BY created_at'
+      );
+      res.json(modes);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error obteniendo modos:', error);
+    res.status(500).json({ error: 'Error al obtener modos' });
+  }
+});
+
+// Create mode
+app.post('/api/modes', async (req, res) => {
+  try {
+    const { mode_id, name, prompt } = req.body;
+    
+    if (!mode_id || !name || !prompt) {
+      return res.status(400).json({ error: 'mode_id, name y prompt son requeridos' });
+    }
+    
+    if (useDatabase) {
+      const [result] = await db.execute(
+        'INSERT INTO modes (mode_id, name, prompt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), prompt = VALUES(prompt)',
+        [mode_id, name, prompt]
+      );
+      res.json({ success: true, id: result.insertId });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error creando modo:', error);
+    res.status(500).json({ error: 'Error al crear modo' });
+  }
+});
+
+// Update mode
+app.put('/api/modes/:mode_id', async (req, res) => {
+  try {
+    const { mode_id } = req.params;
+    const { name, prompt } = req.body;
+    
+    if (!name || !prompt) {
+      return res.status(400).json({ error: 'name y prompt son requeridos' });
+    }
+    
+    if (useDatabase) {
+      await db.execute(
+        'UPDATE modes SET name = ?, prompt = ? WHERE mode_id = ?',
+        [name, prompt, mode_id]
+      );
+      res.json({ success: true });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error actualizando modo:', error);
+    res.status(500).json({ error: 'Error al actualizar modo' });
+  }
+});
+
+// Delete mode
+app.delete('/api/modes/:mode_id', async (req, res) => {
+  try {
+    const { mode_id } = req.params;
+    
+    if (useDatabase) {
+      await db.execute(
+        'UPDATE modes SET is_active = FALSE WHERE mode_id = ?',
+        [mode_id]
+      );
+      res.json({ success: true });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error eliminando modo:', error);
+    res.status(500).json({ error: 'Error al eliminar modo' });
+  }
+});
+
+// ======== CHAT SESSIONS ENDPOINTS ========
+// Get all chat sessions
+app.get('/api/chat-sessions', async (req, res) => {
+  try {
+    if (useDatabase) {
+      const [sessions] = await db.execute(
+        'SELECT * FROM chat_sessions ORDER BY created_at DESC'
+      );
+      res.json(sessions);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error obteniendo sesiones de chat:', error);
+    res.status(500).json({ error: 'Error al obtener sesiones de chat' });
+  }
+});
+
+// Create chat session
+app.post('/api/chat-sessions', async (req, res) => {
+  try {
+    const { chat_id, mode_id, title } = req.body;
+    
+    if (!chat_id || !mode_id || !title) {
+      return res.status(400).json({ error: 'chat_id, mode_id y title son requeridos' });
+    }
+    
+    if (useDatabase) {
+      const [result] = await db.execute(
+        'INSERT INTO chat_sessions (chat_id, mode_id, title) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE mode_id = VALUES(mode_id), title = VALUES(title)',
+        [chat_id, mode_id, title]
+      );
+      res.json({ success: true, id: result.insertId });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error creando sesión de chat:', error);
+    res.status(500).json({ error: 'Error al crear sesión de chat' });
+  }
+});
+
+// Update chat session (move to different mode)
+app.put('/api/chat-sessions/:chat_id', async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+    const { mode_id, title } = req.body;
+    
+    if (useDatabase) {
+      const updates = [];
+      const values = [];
+      
+      if (mode_id) {
+        updates.push('mode_id = ?');
+        values.push(mode_id);
+      }
+      if (title) {
+        updates.push('title = ?');
+        values.push(title);
+      }
+      
+      if (updates.length > 0) {
+        values.push(chat_id);
+        await db.execute(
+          `UPDATE chat_sessions SET ${updates.join(', ')} WHERE chat_id = ?`,
+          values
+        );
+      }
+      
+      res.json({ success: true });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error actualizando sesión de chat:', error);
+    res.status(500).json({ error: 'Error al actualizar sesión de chat' });
+  }
+});
+
+// Delete chat session
+app.delete('/api/chat-sessions/:chat_id', async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+    
+    if (useDatabase) {
+      await db.execute(
+        'DELETE FROM chat_sessions WHERE chat_id = ?',
+        [chat_id]
+      );
+      res.json({ success: true });
+    } else {
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Error eliminando sesión de chat:', error);
+    res.status(500).json({ error: 'Error al eliminar sesión de chat' });
+  }
+});
+
+// Get chat sessions by mode
+app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
+  try {
+    const { mode_id } = req.params;
+    
+    if (useDatabase) {
+      const [sessions] = await db.execute(
+        'SELECT * FROM chat_sessions WHERE mode_id = ? ORDER BY created_at DESC',
+        [mode_id]
+      );
+      res.json(sessions);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error obteniendo sesiones por modo:', error);
+    res.status(500).json({ error: 'Error al obtener sesiones por modo' });
+  }
+});
+
 // Catch-all route for SPA - MUST be last
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'frontend', 'dist', 'index.html'));
