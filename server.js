@@ -229,19 +229,30 @@ app.get('/api/conversations/:session_id', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
+  console.log('📨 POST /api/chat - Iniciando');
+  console.log('Body recibido:', { 
+    message: req.body.message?.substring(0, 50), 
+    session_id: req.body.session_id,
+    has_history: req.body.conversation_history?.length > 0 
+  });
+  
   try {
     const { message, session_id, audio_data, conversation_history = [] } = req.body;
 
     if (!message || !session_id) {
+      console.log('❌ Faltan parámetros requeridos');
       return res.status(400).json({ error: 'message y session_id son requeridos' });
     }
 
     if (!process.env.OPENAI_API_KEY) {
+      console.log('❌ OpenAI API key no configurada');
       return res.status(500).json({ 
         error: 'API key de OpenAI no configurada',
         message: 'Por favor, configura OPENAI_API_KEY en las variables de entorno'
       });
     }
+    
+    console.log('✅ Validaciones pasadas, procesando con OpenAI...');
 
     let conversationId;
     if (useDatabase) {
@@ -300,6 +311,8 @@ app.post('/api/chat', async (req, res) => {
       { role: 'user', content: message }
     ];
 
+    console.log('🤖 Enviando a OpenAI con', messages.length, 'mensajes');
+    
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: messages,
@@ -308,6 +321,7 @@ app.post('/api/chat', async (req, res) => {
     });
 
     const assistantMessage = completion.choices[0].message.content;
+    console.log('✅ Respuesta de OpenAI recibida:', assistantMessage.substring(0, 100));
 
     if (useDatabase) {
       await db.execute(
@@ -331,7 +345,8 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en chat:', error);
+    console.error('❌ Error en chat:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ 
       error: 'Error procesando mensaje',
       details: error.message 
@@ -425,12 +440,28 @@ app.get('*', (req, res) => {
 });
 
 async function startServer() {
+  console.log('========================================');
+  console.log('🔧 Iniciando servidor AI Assistant');
+  console.log('========================================');
+  console.log('📍 Variables de entorno detectadas:');
+  console.log('   DB_HOST:', process.env.DB_HOST || 'no configurado');
+  console.log('   DB_USER:', process.env.DB_USER || 'no configurado');
+  console.log('   DB_NAME:', process.env.DB_NAME || 'no configurado');
+  console.log('   DB_PASSWORD:', process.env.DB_PASSWORD ? '***configurado***' : 'no configurado');
+  console.log('   OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '***configurado***' : 'no configurado');
+  console.log('   PORT:', process.env.PORT || 3001);
+  console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
+  console.log('   Node.js version:', process.version);
+  console.log('========================================');
+  
   await initDatabase();
   
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📊 Base de datos: ${useDatabase ? 'MariaDB' : 'Memoria'}`);
-    console.log(`🤖 OpenAI: ${process.env.OPENAI_API_KEY ? 'Configurado' : 'No configurado'}`);
+    console.log(`📊 Base de datos: ${useDatabase ? 'MariaDB conectada' : 'Usando memoria (fallback)'}`);
+    console.log(`🤖 OpenAI API: ${process.env.OPENAI_API_KEY ? '✅ Configurada' : '❌ No configurada'}`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
+    console.log('========================================');
   });
 }
 
