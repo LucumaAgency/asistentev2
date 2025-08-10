@@ -636,6 +636,17 @@ app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
 const createAuthRoutes = require('./routes/auth.cjs');
 const { optionalAuth } = require('./middleware/auth.cjs');
 
+// Endpoint de debug para verificar configuración
+app.get('/api/auth/config-check', (req, res) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID ? 'Configurado' : 'NO CONFIGURADO',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Configurado' : 'NO CONFIGURADO',
+    jwtSecret: process.env.JWT_SECRET ? 'Configurado' : 'NO CONFIGURADO',
+    database: useDatabase ? 'Conectada' : 'No conectada',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Esta función se llamará después de inicializar la BD
 const setupAuthRoutes = () => {
   const authRoutes = createAuthRoutes(db);
@@ -648,10 +659,20 @@ app.get('*', (req, res) => {
 
 async function startServer() {
   try {
+    console.log('========================================');
+    console.log('🔧 Iniciando servidor AI Assistant');
+    console.log('========================================');
+    console.log('📍 Variables de entorno:');
+    console.log('   GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    console.log('   GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    console.log('   JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    console.log('========================================');
+    
     await initDatabase();
     
     // Configurar rutas de autenticación después de inicializar DB
     setupAuthRoutes();
+    console.log('✅ Rutas de autenticación configuradas');
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
