@@ -199,4 +199,4 @@ Para problemas o preguntas:
 
 ---
 
-**Desarrollado para despliegue optimizado en Plesk con CI/CD automatizado**
+**Desarrollado para despliegue optimizado en Plesk con CI/CD automatizado**# Trigger workflow Sun Aug 10 18:54:16 UTC 2025
