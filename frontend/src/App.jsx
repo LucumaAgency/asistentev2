@@ -17,6 +17,8 @@ function App() {
   const [currentMode, setCurrentMode] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceInitialized, setVoiceInitialized] = useState(false);
+  const [lastAssistantMessage, setLastAssistantMessage] = useState('');
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -235,40 +237,61 @@ function App() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      setLastAssistantMessage(response.data.message);
       
       // Solo leer la respuesta si está habilitado
       if (voiceEnabled && 'speechSynthesis' in window) {
         console.log('Intentando leer respuesta:', response.data.message.substring(0, 50) + '...');
         
-        // Cancelar cualquier lectura en curso
-        window.speechSynthesis.cancel();
+        // Función para leer el mensaje
+        const speakMessage = () => {
+          // Cancelar cualquier lectura en curso
+          window.speechSynthesis.cancel();
+          
+          // Crear nueva utterance
+          const utterance = new SpeechSynthesisUtterance(response.data.message);
+          utterance.lang = 'es-ES';
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+          
+          // Intentar obtener una voz en español
+          const voices = window.speechSynthesis.getVoices();
+          const spanishVoice = voices.find(voice => 
+            voice.lang === 'es-ES' || voice.lang === 'es-MX' || voice.lang.startsWith('es')
+          );
+          if (spanishVoice) {
+            utterance.voice = spanishVoice;
+            console.log('Usando voz:', spanishVoice.name);
+          }
+          
+          // Agregar event listeners para debug
+          utterance.onstart = () => console.log('Iniciando lectura de voz');
+          utterance.onend = () => console.log('Lectura de voz finalizada');
+          utterance.onerror = (event) => {
+            console.error('Error en lectura de voz:', event);
+            // En móviles, intentar de nuevo con un click simulado
+            if (event.error === 'not-allowed' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              console.log('Requiere interacción del usuario en móvil');
+            }
+          };
+          
+          // Intentar hablar
+          try {
+            window.speechSynthesis.speak(utterance);
+          } catch (error) {
+            console.error('Error al intentar hablar:', error);
+          }
+        };
         
-        // Crear nueva utterance
-        const utterance = new SpeechSynthesisUtterance(response.data.message);
-        utterance.lang = 'es-ES';
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Intentar obtener una voz en español
-        const voices = window.speechSynthesis.getVoices();
-        const spanishVoice = voices.find(voice => 
-          voice.lang === 'es-ES' || voice.lang === 'es-MX' || voice.lang.startsWith('es')
-        );
-        if (spanishVoice) {
-          utterance.voice = spanishVoice;
-          console.log('Usando voz:', spanishVoice.name);
+        // En móviles, usar un pequeño delay y verificar si necesita inicialización
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          // Para móviles, intentar directamente y si falla, guardar para reproducir después
+          setTimeout(speakMessage, 200);
+        } else {
+          // Para desktop, usar el delay normal
+          setTimeout(speakMessage, 100);
         }
-        
-        // Agregar event listeners para debug
-        utterance.onstart = () => console.log('Iniciando lectura de voz');
-        utterance.onend = () => console.log('Lectura de voz finalizada');
-        utterance.onerror = (event) => console.error('Error en lectura de voz:', event);
-        
-        // Pequeño delay para asegurar que el sistema esté listo
-        setTimeout(() => {
-          window.speechSynthesis.speak(utterance);
-        }, 100);
       }
     } catch (err) {
       console.error('Error sending message:', err);
@@ -333,6 +356,41 @@ function App() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       console.log('Lectura de voz detenida');
+    }
+  };
+
+  const speakLastMessage = () => {
+    if (lastAssistantMessage && 'speechSynthesis' in window) {
+      console.log('Reproduciendo último mensaje manualmente');
+      
+      // Cancelar cualquier lectura en curso
+      window.speechSynthesis.cancel();
+      
+      // Crear nueva utterance
+      const utterance = new SpeechSynthesisUtterance(lastAssistantMessage);
+      utterance.lang = 'es-ES';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      // Intentar obtener una voz en español
+      const voices = window.speechSynthesis.getVoices();
+      const spanishVoice = voices.find(voice => 
+        voice.lang === 'es-ES' || voice.lang === 'es-MX' || voice.lang.startsWith('es')
+      );
+      if (spanishVoice) {
+        utterance.voice = spanishVoice;
+      }
+      
+      utterance.onstart = () => console.log('Iniciando lectura manual');
+      utterance.onend = () => console.log('Lectura manual finalizada');
+      utterance.onerror = (event) => console.error('Error en lectura manual:', event);
+      
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Error al reproducir:', error);
+      }
     }
   };
 
@@ -509,6 +567,11 @@ function App() {
             <button onClick={stopSpeaking} className="clear-button">
               Detener voz
             </button>
+            {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && lastAssistantMessage && (
+              <button onClick={speakLastMessage} className="clear-button" title="Reproducir última respuesta">
+                🔊 Reproducir
+              </button>
+            )}
             <label className="voice-toggle">
               <input 
                 type="checkbox" 
@@ -517,7 +580,18 @@ function App() {
                   const enabled = e.target.checked;
                   setVoiceEnabled(enabled);
                   console.log('Lectura de respuestas:', enabled ? 'Activada' : 'Desactivada');
-                  if (!enabled && 'speechSynthesis' in window) {
+                  
+                  // Si se activa en móvil, inicializar con una utterance vacía
+                  if (enabled && 'speechSynthesis' in window) {
+                    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !voiceInitialized) {
+                      // Inicializar con un texto vacío para "despertar" la síntesis de voz
+                      const initUtterance = new SpeechSynthesisUtterance('');
+                      initUtterance.volume = 0;
+                      window.speechSynthesis.speak(initUtterance);
+                      setVoiceInitialized(true);
+                      console.log('Síntesis de voz inicializada en móvil');
+                    }
+                  } else if (!enabled && 'speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
                   }
                 }}
