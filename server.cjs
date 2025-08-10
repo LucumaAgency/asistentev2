@@ -632,6 +632,60 @@ app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
   }
 });
 
+// Get messages for a specific chat session
+app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+    
+    if (useDatabase) {
+      // First, get the session to find the conversation
+      const [sessions] = await db.execute(
+        'SELECT * FROM chat_sessions WHERE chat_id = ?',
+        [chat_id]
+      );
+      
+      if (sessions.length === 0) {
+        return res.status(404).json({ error: 'Sesión de chat no encontrada' });
+      }
+      
+      // Get the corresponding conversation by session_id pattern
+      // Chat sessions are stored with session IDs that match conversation session_ids
+      const [conversations] = await db.execute(
+        'SELECT * FROM conversations WHERE session_id LIKE ?',
+        [`%${chat_id}%`]
+      );
+      
+      if (conversations.length > 0) {
+        const conversation = conversations[0];
+        const [messages] = await db.execute(
+          'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC',
+          [conversation.id]
+        );
+        
+        res.json({ 
+          session: sessions[0],
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+        });
+      } else {
+        // No messages yet for this chat
+        res.json({ 
+          session: sessions[0],
+          messages: []
+        });
+      }
+    } else {
+      // For in-memory storage, return empty for now
+      res.json({ messages: [] });
+    }
+  } catch (error) {
+    console.error('Error obteniendo mensajes del chat:', error);
+    res.status(500).json({ error: 'Error al obtener mensajes del chat' });
+  }
+});
+
 // Importar y configurar rutas de autenticación
 const createAuthRoutes = require('./routes/auth.cjs');
 const { optionalAuth } = require('./middleware/auth.cjs');
