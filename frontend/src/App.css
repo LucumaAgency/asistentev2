@@ -210,28 +210,56 @@ body {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  border: none;
-  background: #407BFF;
-  color: #151718;
+  border: 2px solid rgba(64, 123, 255, 0.3);
+  background: transparent;
+  color: #407BFF;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-  font-size: 20px;
+  transition: all 0.3s ease;
+  font-size: 8px;
+  position: relative;
+}
+
+.voice-button::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #407BFF;
+  border-radius: 50%;
+  transition: all 0.3s ease;
 }
 
 .voice-button:hover {
+  border-color: #407BFF;
+  background: rgba(64, 123, 255, 0.05);
   transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(64, 123, 255, 0.4);
 }
 
 .voice-button.recording {
   animation: pulse 1.5s infinite;
-  background: #ff4757;
-  color: #ffffff;
   border-color: #ff4757;
-  transform: scale(1.05);
+  background: rgba(255, 71, 87, 0.05);
+}
+
+.voice-button.recording::before {
+  background: #ff4757;
+  width: 12px;
+  height: 12px;
+  animation: record-pulse 1s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
 }
 
 @keyframes pulse {
@@ -513,7 +541,16 @@ body {
   .voice-button {
     width: 44px;
     height: 44px;
-    font-size: 18px;
+  }
+  
+  .voice-button::before {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .voice-button.recording::before {
+    width: 10px;
+    height: 10px;
   }
   
   .voice-toggle {
@@ -613,7 +650,16 @@ body {
   .voice-button {
     width: 40px;
     height: 40px;
-    font-size: 16px;
+  }
+  
+  .voice-button::before {
+    width: 5px;
+    height: 5px;
+  }
+  
+  .voice-button.recording::before {
+    width: 8px;
+    height: 8px;
   }
   
   .send-button {

@@ -103,11 +103,10 @@ function App() {
           }, 3000);
           
           if (finalTranscript) {
-            setInputMessage(prev => prev + finalTranscript);
+            setInputMessage(finalTranscript);
           } else if (interimTranscript) {
-            // Opcionalmente mostrar texto parcial mientras habla
-            const currentBase = inputMessage.substring(0, inputMessage.lastIndexOf(' ') + 1);
-            setInputMessage(currentBase + interimTranscript);
+            // Mostrar texto parcial mientras habla
+            setInputMessage(interimTranscript);
           }
         }
       };
@@ -354,7 +353,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>AI Assistant v2.1</h1>
+            <h1>Asistente IA v2.1</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <div className="user-menu">
@@ -384,8 +383,8 @@ function App() {
             <div className="empty-state">
               <div className="empty-state-icon">○</div>
               <div className="empty-state-text">
-                Start a conversation<br />
-                Type a message or use voice input
+                Inicia una conversación<br />
+                Escribe un mensaje o usa entrada de voz
               </div>
             </div>
           ) : (
@@ -421,13 +420,12 @@ function App() {
               onClick={toggleRecording}
               title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
             >
-              {isRecording ? '⏹️' : '🎤'}
             </button>
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={isRecording ? "🔴 Grabando... Habla ahora" : "Type your message..."}
+              placeholder={isRecording ? "🔴 Grabando... Habla ahora" : "Escribe tu mensaje..."}
               className={`message-input ${isRecording ? 'recording' : ''}`}
               disabled={isLoading}
             />
@@ -436,7 +434,7 @@ function App() {
               className="send-button"
               disabled={!inputMessage.trim() || isLoading}
             >
-              {isLoading ? '...' : 'Send'}
+              {isLoading ? '...' : 'Enviar'}
             </button>
           </form>
           <div className="controls">

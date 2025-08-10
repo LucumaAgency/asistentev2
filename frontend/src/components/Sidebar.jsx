@@ -10,7 +10,13 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
   const [editingMode, setEditingMode] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
   const [chatMenuOpen, setChatMenuOpen] = useState(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  
+  // Mínima distancia de swipe requerida (en px)
+  const minSwipeDistance = 50;
 
   // Cargar modos desde la API al iniciar
   useEffect(() => {
@@ -318,6 +324,26 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
     return date.toLocaleDateString();
   };
 
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    
+    if (isLeftSwipe && isOpen && onClose) {
+      onClose();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -329,14 +355,19 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
   }
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+    <div 
+      className={`sidebar ${isOpen ? 'open' : ''}`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Botón de cierre para móviles */}
       <button 
         className="sidebar-close"
         onClick={onClose}
         aria-label="Cerrar menú"
       >
-        ×
+        ✕
       </button>
       
       {/* Sección de Modos */}
@@ -369,25 +400,40 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
                 <span className="mode-name">{mode.name}</span>
               </div>
               {mode.id !== 'default' && (
-                <div className="mode-actions">
+                <div className="mode-menu-container">
                   <button 
-                    className="edit-btn"
+                    className="menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleEditMode(mode);
+                      setModeMenuOpen(modeMenuOpen === mode.id ? null : mode.id);
                     }}
                   >
-                    ✏️
+                    ⋮
                   </button>
-                  <button 
-                    className="delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteMode(mode.id);
-                    }}
-                  >
-                    🗑️
-                  </button>
+                  {modeMenuOpen === mode.id && (
+                    <div className="mode-dropdown">
+                      <button 
+                        className="dropdown-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditMode(mode);
+                          setModeMenuOpen(null);
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        className="dropdown-item delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMode(mode.id);
+                          setModeMenuOpen(null);
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
