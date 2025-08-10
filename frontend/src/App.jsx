@@ -436,12 +436,24 @@ function App() {
     setShowLogin(true);
   };
 
-  const handleChatSelect = (chatId, chatMessages) => {
+  const handleChatSelect = (chatId, chatMessages, chatSessionId) => {
     // Actualizar los mensajes con los del chat seleccionado
     setMessages(chatMessages || []);
-    // Opcionalmente, actualizar el session ID si es necesario
-    // Esto depende de cómo esté estructurada tu lógica de sesiones
-    console.log('Chat seleccionado:', chatId);
+    
+    // Si hay un session_id del chat, usarlo para futuras interacciones
+    if (chatSessionId) {
+      setSessionId(chatSessionId);
+      localStorage.setItem('sessionId', chatSessionId);
+      console.log('Cargando conversación con session_id:', chatSessionId);
+    } else {
+      // Si no hay session_id, crear uno nuevo para continuar la conversación
+      const newSessionId = uuidv4();
+      setSessionId(newSessionId);
+      localStorage.setItem('sessionId', newSessionId);
+      console.log('Creando nuevo session_id para continuar:', newSessionId);
+    }
+    
+    console.log('Chat seleccionado:', chatId, 'Mensajes cargados:', chatMessages?.length || 0);
   };
 
   // Mostrar login si es necesario

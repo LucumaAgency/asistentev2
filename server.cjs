@@ -534,17 +534,40 @@ app.get('/api/chat-sessions', async (req, res) => {
 // Create chat session
 app.post('/api/chat-sessions', async (req, res) => {
   try {
-    const { chat_id, mode_id, title } = req.body;
+    const { chat_id, mode_id, title, session_id, messages } = req.body;
     
     if (!chat_id || !mode_id || !title) {
       return res.status(400).json({ error: 'chat_id, mode_id y title son requeridos' });
     }
     
     if (useDatabase) {
+      // Primero crear o actualizar la sesión de chat
       const [result] = await db.execute(
         'INSERT INTO chat_sessions (chat_id, mode_id, title) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE mode_id = VALUES(mode_id), title = VALUES(title)',
         [chat_id, mode_id, title]
       );
+      
+      // Si se proporcionan session_id y messages, guardar la conversación
+      if (session_id && messages && messages.length > 0) {
+        // Crear o actualizar la conversación
+        const [convResult] = await db.execute(
+          'INSERT INTO conversations (session_id, metadata) VALUES (?, ?) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP',
+          [session_id, JSON.stringify({ chat_id, mode_id })]
+        );
+        
+        const conversationId = convResult.insertId || convResult.affectedRows;
+        
+        // Guardar los mensajes
+        for (const msg of messages) {
+          if (msg.role && msg.content) {
+            await db.execute(
+              'INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)',
+              [conversationId, msg.role, msg.content]
+            );
+          }
+        }
+      }
+      
       res.json({ success: true, id: result.insertId });
     } else {
       res.json({ success: true });
@@ -648,11 +671,10 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
         return res.status(404).json({ error: 'Sesión de chat no encontrada' });
       }
       
-      // Get the corresponding conversation by session_id pattern
-      // Chat sessions are stored with session IDs that match conversation session_ids
+      // Try to find conversation by metadata containing chat_id
       const [conversations] = await db.execute(
-        'SELECT * FROM conversations WHERE session_id LIKE ?',
-        [`%${chat_id}%`]
+        `SELECT * FROM conversations WHERE metadata LIKE ?`,
+        [`%"chat_id":"${chat_id}"%`]
       );
       
       if (conversations.length > 0) {
@@ -664,6 +686,7 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
         
         res.json({ 
           session: sessions[0],
+          session_id: conversation.session_id,
           messages: messages.map(msg => ({
             role: msg.role,
             content: msg.content
@@ -673,6 +696,7 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
         // No messages yet for this chat
         res.json({ 
           session: sessions[0],
+          session_id: null,
           messages: []
         });
       }
