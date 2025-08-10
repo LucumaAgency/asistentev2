@@ -17,6 +17,10 @@ const client = new OAuth2Client(
 // Función para verificar el token de Google
 const verifyGoogleToken = async (token) => {
   try {
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      throw new Error('GOOGLE_CLIENT_ID no está configurado en las variables de entorno');
+    }
+    
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -147,12 +151,17 @@ const createAuthRoutes = (db) => {
   // Login con Google
   router.post('/google', async (req, res) => {
     try {
+      console.log('📍 Recibiendo login con Google');
       const { credential } = req.body;
 
       if (!credential) {
+        console.log('❌ No se recibió credential');
         return res.status(400).json({ error: 'Token de Google no proporcionado' });
       }
 
+      console.log('🔍 Verificando token con Google...');
+      console.log('   Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Configurado' : 'NO CONFIGURADO');
+      
       const googleData = await verifyGoogleToken(credential);
 
       if (!googleData.emailVerified) {
@@ -179,8 +188,12 @@ const createAuthRoutes = (db) => {
         }
       });
     } catch (error) {
-      console.error('Error en login con Google:', error);
-      res.status(500).json({ error: 'Error al autenticar con Google' });
+      console.error('❌ Error en login con Google:', error.message);
+      console.error('   Detalles:', error);
+      res.status(500).json({ 
+        error: 'Error al autenticar con Google',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
