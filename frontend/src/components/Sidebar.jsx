@@ -144,6 +144,7 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
     if (messages.length > 0 && currentMode) {
       const chatId = Date.now().toString();
       const chatTitle = messages[0]?.content?.substring(0, 30) + '...' || 'Chat nuevo';
+      const sessionId = localStorage.getItem('sessionId');
       
       // Guardar en la BD
       const saveChat = async () => {
@@ -151,7 +152,9 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           await axios.post('/api/chat-sessions', {
             chat_id: chatId,
             mode_id: currentMode.id,
-            title: chatTitle
+            title: chatTitle,
+            session_id: sessionId,
+            messages: messages
           });
         } catch (error) {
           console.error('Error guardando chat en BD:', error);
@@ -175,7 +178,8 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
             id: chatId,
             title: chatTitle,
             timestamp: Date.now(),
-            messages: messages
+            messages: messages,
+            sessionId: sessionId
           };
           newChats[currentMode.id].unshift(newChat);
           saveChat(); // Guardar en BD
@@ -489,11 +493,16 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                   if (onChatSelect) {
                     try {
                       const response = await axios.get(`/api/chat-sessions/${chat.id}/messages`);
-                      if (response.data && response.data.messages) {
-                        onChatSelect(chat.id, response.data.messages);
+                      if (response.data) {
+                        // Pasar también el session_id si existe
+                        onChatSelect(chat.id, response.data.messages, response.data.session_id);
                       }
                     } catch (error) {
                       console.error('Error cargando mensajes del chat:', error);
+                      // Si falla desde la BD, intentar usar los mensajes locales
+                      if (chat.messages && chat.messages.length > 0) {
+                        onChatSelect(chat.id, chat.messages, chat.sessionId);
+                      }
                     }
                   }
                   // Cerrar sidebar en móviles
