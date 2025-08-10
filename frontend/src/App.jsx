@@ -46,24 +46,45 @@ function App() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.continuous = true;  // Cambiar a true para grabación continua
+      recognitionRef.current.interimResults = true;  // Mostrar resultados parciales
       recognitionRef.current.lang = 'es-ES';
       
       recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInputMessage(transcript);
-        setIsRecording(false);
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        // Actualizar el mensaje con el texto final o parcial
+        if (finalTranscript) {
+          setInputMessage(prev => prev + finalTranscript);
+        } else if (interimTranscript) {
+          // Opcionalmente mostrar texto parcial mientras habla
+          const currentBase = inputMessage.substring(0, inputMessage.lastIndexOf(' ') + 1);
+          setInputMessage(currentBase + interimTranscript);
+        }
       };
       
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        setError('Error en el reconocimiento de voz');
+        // Solo detener si es un error grave
+        if (event.error === 'no-speech' || event.error === 'audio-capture') {
+          setIsRecording(false);
+          setError('Error en el reconocimiento de voz');
+        }
       };
       
       recognitionRef.current.onend = () => {
-        setIsRecording(false);
+        // El estado se manejará en el efecto separado
+        console.log('Recognition ended');
       };
     }
   }, []);
@@ -71,6 +92,22 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Efecto para manejar el reinicio automático del reconocimiento
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = () => {
+        if (isRecording) {
+          try {
+            recognitionRef.current.start();
+          } catch (err) {
+            console.error('Error restarting recognition:', err);
+            setIsRecording(false);
+          }
+        }
+      };
+    }
+  }, [isRecording]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -154,13 +191,19 @@ function App() {
     }
 
     if (isRecording) {
+      // Detener la grabación
       recognitionRef.current.stop();
       setIsRecording(false);
+      console.log('Grabación detenida');
     } else {
+      // Limpiar el campo de texto antes de comenzar nueva grabación (opcional)
+      // setInputMessage('');
+      
       try {
         recognitionRef.current.start();
         setIsRecording(true);
         setError('');
+        console.log('Grabación iniciada');
       } catch (err) {
         console.error('Error starting recognition:', err);
         setError('Error al iniciar el reconocimiento de voz');
@@ -257,17 +300,17 @@ function App() {
               type="button"
               className={`voice-button ${isRecording ? 'recording' : ''}`}
               onClick={toggleRecording}
-              title={isRecording ? 'Detener grabación' : 'Mantén presionado para hablar'}
+              title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
             >
-              {isRecording ? '◼' : '●'}
+              {isRecording ? '⏹️' : '🎤'}
             </button>
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="message-input"
-              disabled={isLoading || isRecording}
+              placeholder={isRecording ? "🔴 Grabando... Habla ahora" : "Type your message..."}
+              className={`message-input ${isRecording ? 'recording' : ''}`}
+              disabled={isLoading}
             />
             <button
               type="submit"
