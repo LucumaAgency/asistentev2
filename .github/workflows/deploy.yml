@@ -68,9 +68,6 @@ jobs:
         # Add all files including the built dist folder
         git add -A
         
-        # Limpiar archivos viejos de dist/assets primero
-        git rm -rf frontend/dist/assets/*.js frontend/dist/assets/*.css 2>/dev/null || true
-        
         # Force add dist folder (in case it's in gitignore)
         git add -f frontend/dist
         
