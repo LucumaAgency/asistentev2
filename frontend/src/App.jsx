@@ -15,10 +15,12 @@ function App() {
   const [error, setError] = useState('');
   const [currentMode, setCurrentMode] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
+  const silenceTimerRef = useRef(null);
 
   useEffect(() => {
     const newSessionId = localStorage.getItem('sessionId') || uuidv4();
@@ -64,12 +66,28 @@ function App() {
         }
         
         // Actualizar el mensaje con el texto final o parcial
-        if (finalTranscript) {
-          setInputMessage(prev => prev + finalTranscript);
-        } else if (interimTranscript) {
-          // Opcionalmente mostrar texto parcial mientras habla
-          const currentBase = inputMessage.substring(0, inputMessage.lastIndexOf(' ') + 1);
-          setInputMessage(currentBase + interimTranscript);
+        if (finalTranscript || interimTranscript) {
+          // Reiniciar el timer de silencio cada vez que se detecta voz
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+          }
+          
+          // Establecer nuevo timer de 3 segundos
+          silenceTimerRef.current = setTimeout(() => {
+            console.log('3 segundos de silencio detectados, deteniendo grabación');
+            if (recognitionRef.current) {
+              recognitionRef.current.stop();
+              setIsRecording(false);
+            }
+          }, 3000);
+          
+          if (finalTranscript) {
+            setInputMessage(prev => prev + finalTranscript);
+          } else if (interimTranscript) {
+            // Opcionalmente mostrar texto parcial mientras habla
+            const currentBase = inputMessage.substring(0, inputMessage.lastIndexOf(' ') + 1);
+            setInputMessage(currentBase + interimTranscript);
+          }
         }
       };
       
@@ -169,7 +187,8 @@ function App() {
 
       setMessages(prev => [...prev, assistantMessage]);
       
-      if (synthRef.current && 'speechSynthesis' in window) {
+      // Solo leer la respuesta si está habilitado
+      if (voiceEnabled && synthRef.current && 'speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance(response.data.message);
         utterance.lang = 'es-ES';
         utterance.rate = 1.0;
@@ -191,7 +210,11 @@ function App() {
     }
 
     if (isRecording) {
-      // Detener la grabación
+      // Detener la grabación y limpiar el timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       recognitionRef.current.stop();
       setIsRecording(false);
       console.log('Grabación detenida');
@@ -327,6 +350,15 @@ function App() {
             <button onClick={stopSpeaking} className="clear-button">
               Stop voice
             </button>
+            <label className="voice-toggle">
+              <input 
+                type="checkbox" 
+                checked={voiceEnabled} 
+                onChange={(e) => setVoiceEnabled(e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+              <span className="toggle-label">Leer respuestas</span>
+            </label>
           </div>
         </div>
       </div>

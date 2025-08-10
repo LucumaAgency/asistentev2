@@ -100,6 +100,31 @@ async function initDatabase() {
       )
     `);
 
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS modes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        mode_id VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        prompt TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        mode_id VARCHAR(255),
+        chat_title VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (mode_id) REFERENCES modes(mode_id) ON DELETE SET NULL,
+        INDEX idx_session_mode (session_id, mode_id)
+      )
+    `);
+
     db = connection;
     useDatabase = true;
     console.log('✅ Base de datos conectada y tablas creadas');
@@ -117,6 +142,60 @@ app.get('/api/health', (req, res) => {
     database: useDatabase ? 'connected' : 'in-memory',
     openai: !!process.env.OPENAI_API_KEY ? 'configured' : 'not-configured'
   });
+});
+
+// Endpoints para modos
+app.get('/api/modes', async (req, res) => {
+  try {
+    if (useDatabase) {
+      const [modes] = await db.execute('SELECT * FROM modes WHERE is_active = TRUE ORDER BY created_at');
+      res.json(modes);
+    } else {
+      res.json([]); // Por ahora retornar vacío si no hay BD
+    }
+  } catch (error) {
+    console.error('Error obteniendo modos:', error);
+    res.status(500).json({ error: 'Error al obtener modos' });
+  }
+});
+
+app.post('/api/modes', async (req, res) => {
+  try {
+    const { mode_id, name, prompt } = req.body;
+    
+    if (!mode_id || !name || !prompt) {
+      return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+    
+    if (useDatabase) {
+      await db.execute(
+        'INSERT INTO modes (mode_id, name, prompt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), prompt = VALUES(prompt)',
+        [mode_id, name, prompt]
+      );
+      res.json({ success: true, message: 'Modo guardado' });
+    } else {
+      res.json({ success: true, message: 'Modo guardado en memoria' });
+    }
+  } catch (error) {
+    console.error('Error guardando modo:', error);
+    res.status(500).json({ error: 'Error al guardar modo' });
+  }
+});
+
+app.delete('/api/modes/:mode_id', async (req, res) => {
+  try {
+    const { mode_id } = req.params;
+    
+    if (useDatabase) {
+      await db.execute('UPDATE modes SET is_active = FALSE WHERE mode_id = ?', [mode_id]);
+      res.json({ success: true, message: 'Modo eliminado' });
+    } else {
+      res.json({ success: true, message: 'Modo eliminado de memoria' });
+    }
+  } catch (error) {
+    console.error('Error eliminando modo:', error);
+    res.status(500).json({ error: 'Error al eliminar modo' });
+  }
 });
 
 app.get('/api/db-test', async (req, res) => {
@@ -233,7 +312,8 @@ app.post('/api/chat', async (req, res) => {
   console.log('Body recibido:', { 
     message: req.body.message?.substring(0, 50), 
     session_id: req.body.session_id,
-    has_history: req.body.conversation_history?.length > 0 
+    has_history: req.body.conversation_history?.length > 0,
+    system_prompt: req.body.system_prompt?.substring(0, 50)
   });
   
   try {

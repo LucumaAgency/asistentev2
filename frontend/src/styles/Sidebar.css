@@ -83,6 +83,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0; /* Permite que el flex-item se encoja */
 }
 
 .mode-name, .chat-title {
@@ -92,11 +93,85 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .chat-date {
   color: #6a6f78;
   font-size: 11px;
+}
+
+/* Menú dropdown para chats */
+.chat-menu-container {
+  position: relative;
+}
+
+.menu-btn {
+  background: transparent;
+  border: none;
+  color: #6a6f78;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.menu-btn:hover {
+  background: rgba(64, 123, 255, 0.1);
+  color: #407BFF;
+}
+
+.chat-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #202224;
+  border: 1px solid rgba(64, 123, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 0;
+  min-width: 150px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.dropdown-item:hover {
+  background: rgba(64, 123, 255, 0.1);
+  color: #407BFF;
+}
+
+.dropdown-item.delete:hover {
+  background: rgba(255, 71, 87, 0.1);
+  color: #ff4757;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(64, 123, 255, 0.2);
+  margin: 4px 0;
+}
+
+.dropdown-label {
+  padding: 4px 16px;
+  color: #6a6f78;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .mode-actions {

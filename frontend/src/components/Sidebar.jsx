@@ -8,6 +8,7 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
   const [newMode, setNewMode] = useState({ name: '', prompt: '' });
   const [editingMode, setEditingMode] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
+  const [chatMenuOpen, setChatMenuOpen] = useState(null);
 
   // Cargar modos del localStorage al iniciar
   useEffect(() => {
@@ -133,6 +134,30 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
       localStorage.setItem('assistantChats', JSON.stringify(newChats));
       return newChats;
     });
+    setChatMenuOpen(null);
+  };
+
+  const handleMoveChatToMode = (chatId, fromModeId, toModeId) => {
+    setChats(prevChats => {
+      const newChats = { ...prevChats };
+      
+      // Encontrar el chat
+      const chat = newChats[fromModeId]?.find(c => c.id === chatId);
+      if (!chat) return prevChats;
+      
+      // Remover del modo actual
+      newChats[fromModeId] = newChats[fromModeId].filter(c => c.id !== chatId);
+      
+      // Agregar al nuevo modo
+      if (!newChats[toModeId]) {
+        newChats[toModeId] = [];
+      }
+      newChats[toModeId].unshift(chat);
+      
+      localStorage.setItem('assistantChats', JSON.stringify(newChats));
+      return newChats;
+    });
+    setChatMenuOpen(null);
   };
 
   return (
@@ -241,13 +266,37 @@ const Sidebar = ({ onModeChange, currentMode, messages }) => {
                   {new Date(chat.timestamp).toLocaleDateString()}
                 </span>
               </div>
-              <button 
-                className="delete-btn"
-                onClick={() => handleDeleteChat(currentMode.id, chat.id)}
-                title="Eliminar chat"
-              >
-                🗑️
-              </button>
+              <div className="chat-menu-container">
+                <button 
+                  className="menu-btn"
+                  onClick={() => setChatMenuOpen(chatMenuOpen === chat.id ? null : chat.id)}
+                  title="Opciones"
+                >
+                  ⋮
+                </button>
+                
+                {chatMenuOpen === chat.id && (
+                  <div className="chat-dropdown">
+                    <button 
+                      className="dropdown-item delete"
+                      onClick={() => handleDeleteChat(currentMode.id, chat.id)}
+                    >
+                      🗑️ Eliminar
+                    </button>
+                    <div className="dropdown-divider"></div>
+                    <div className="dropdown-label">Mover a:</div>
+                    {modes.filter(m => m.id !== currentMode.id).map(mode => (
+                      <button
+                        key={mode.id}
+                        className="dropdown-item"
+                        onClick={() => handleMoveChatToMode(chat.id, currentMode.id, mode.id)}
+                      >
+                        → {mode.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
           
