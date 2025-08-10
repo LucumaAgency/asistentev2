@@ -3,6 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
+import Login from './components/Login';
 import './App.css';
 
 function App() {
@@ -16,6 +17,9 @@ function App() {
   const [currentMode, setCurrentMode] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -23,6 +27,23 @@ function App() {
   const silenceTimerRef = useRef(null);
 
   useEffect(() => {
+    // Verificar si hay token guardado
+    const token = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('user');
+    
+    if (token && savedUser) {
+      // Configurar axios con el token
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(JSON.parse(savedUser));
+      setIsAuthenticated(true);
+      
+      // Verificar que el token sigue siendo válido
+      verifyToken(token);
+    } else {
+      // Mostrar login si no hay token
+      setShowLogin(true);
+    }
+    
     const newSessionId = localStorage.getItem('sessionId') || uuidv4();
     localStorage.setItem('sessionId', newSessionId);
     setSessionId(newSessionId);
@@ -260,12 +281,60 @@ function App() {
     }
   };
 
+  const verifyToken = async (token) => {
+    try {
+      const response = await axios.get('/api/auth/profile');
+      if (response.data.user) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error('Token inválido:', error);
+      // Si el token es inválido, limpiar y mostrar login
+      handleLogout();
+    }
+  };
+
+  const handleLoginSuccess = (userData) => {
+    if (userData) {
+      setUser(userData);
+      setIsAuthenticated(true);
+    }
+    setShowLogin(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Error en logout:', error);
+    }
+    
+    // Limpiar datos locales
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
+    
+    // Resetear estado
+    setUser(null);
+    setIsAuthenticated(false);
+    setMessages([]);
+    setShowLogin(true);
+  };
+
+  // Mostrar login si es necesario
+  if (showLogin) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="app-container">
       <Sidebar 
         onModeChange={handleModeChange}
         currentMode={currentMode}
         messages={messages}
+        user={user}
       />
       
       <div className="app">
@@ -279,6 +348,25 @@ function App() {
           <div>
             <h1>AI Assistant v2</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
+          </div>
+          <div className="user-menu">
+            {user ? (
+              <div className="user-info">
+                {user.picture && (
+                  <img src={user.picture} alt={user.name} className="user-avatar" />
+                )}
+                <div className="user-details">
+                  <span className="user-name">{user.name}</span>
+                </div>
+                <button onClick={handleLogout} className="logout-button">
+                  Salir
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowLogin(true)} className="login-button">
+                Iniciar sesión
+              </button>
+            )}
           </div>
         </header>
 
