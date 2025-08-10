@@ -327,6 +327,14 @@ function App() {
     setShowLogin(true);
   };
 
+  const handleChatSelect = (chatId, chatMessages) => {
+    // Actualizar los mensajes con los del chat seleccionado
+    setMessages(chatMessages || []);
+    // Opcionalmente, actualizar el session ID si es necesario
+    // Esto depende de cómo esté estructurada tu lógica de sesiones
+    console.log('Chat seleccionado:', chatId);
+  };
+
   // Mostrar login si es necesario
   if (showLogin) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -347,6 +355,7 @@ function App() {
         user={user}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        onChatSelect={handleChatSelect}
       />
       
       <div className="app">

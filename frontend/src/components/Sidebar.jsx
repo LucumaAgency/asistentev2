@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
 
-const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
+const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatSelect }) => {
   const [modes, setModes] = useState([]);
   const [chats, setChats] = useState({});
   const [isAddingMode, setIsAddingMode] = useState(false);
@@ -361,17 +361,6 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Header del sidebar con botón de cierre */}
-      <div className="sidebar-header">
-        <h2>Menú</h2>
-        <button 
-          className="sidebar-close"
-          onClick={onClose}
-          aria-label="Cerrar menú"
-        >
-          ✕
-        </button>
-      </div>
       
       {/* Sección de Modos */}
       <div className="sidebar-section">
@@ -494,7 +483,24 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose }) => {
               <div 
                 key={chat.id} 
                 className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
-                onClick={() => setSelectedChat(chat)}
+                onClick={async () => {
+                  setSelectedChat(chat);
+                  // Cargar los mensajes del chat seleccionado
+                  if (onChatSelect) {
+                    try {
+                      const response = await axios.get(`/api/chat-sessions/${chat.id}/messages`);
+                      if (response.data && response.data.messages) {
+                        onChatSelect(chat.id, response.data.messages);
+                      }
+                    } catch (error) {
+                      console.error('Error cargando mensajes del chat:', error);
+                    }
+                  }
+                  // Cerrar sidebar en móviles
+                  if (window.innerWidth <= 768 && onClose) {
+                    onClose();
+                  }
+                }}
               >
                 <div className="chat-info">
                   <span className="chat-title">{chat.title}</span>
