@@ -162,10 +162,12 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
 
   // Guardar chats cuando los mensajes cambien
   useEffect(() => {
+    console.log('useEffect triggered - Messages:', messages.length, 'Mode:', currentMode?.name);
     if (messages.length > 0 && currentMode) {
       const sessionId = localStorage.getItem('sessionId');
       const chatId = sessionId || Date.now().toString(); // Usar sessionId como chatId
       const chatTitle = messages[0]?.content?.substring(0, 30) + '...' || 'Chat nuevo';
+      console.log('Guardando chat:', { chatId, title: chatTitle, messages: messages.length });
       
       // Guardar en la BD
       const saveChat = async () => {
@@ -210,7 +212,9 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
         }
         
         // Guardar en localStorage también
-        localStorage.setItem('assistantChats', JSON.stringify(newChats));
+        const chatsToSave = JSON.stringify(newChats);
+        localStorage.setItem('assistantChats', chatsToSave);
+        console.log('Chats guardados en localStorage:', Object.keys(newChats).map(k => `${k}: ${newChats[k].length} chats`));
         saveChat(); // Guardar en BD
         
         return newChats;
