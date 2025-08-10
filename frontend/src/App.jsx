@@ -172,18 +172,18 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>🤖 Asistente de IA</h1>
-        <p>Tu compañero inteligente con soporte de voz</p>
+        <h1>AI Assistant</h1>
+        <p>Intelligent voice-enabled chat interface</p>
       </header>
 
       <div className="chat-container">
         <div className="messages-container">
           {messages.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">💬</div>
+              <div className="empty-state-icon">○</div>
               <div className="empty-state-text">
-                ¡Hola! Soy tu asistente de IA.<br />
-                Escribe un mensaje o usa el botón de voz para comenzar.
+                Start a conversation<br />
+                Type a message or use voice input
               </div>
             </div>
           ) : (
@@ -219,13 +219,13 @@ function App() {
               onClick={toggleRecording}
               title={isRecording ? 'Detener grabación' : 'Mantén presionado para hablar'}
             >
-              {isRecording ? '⏹️' : '🎤'}
+              {isRecording ? '◼' : '●'}
             </button>
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Escribe tu mensaje aquí..."
+              placeholder="Type your message..."
               className="message-input"
               disabled={isLoading || isRecording}
             />
@@ -234,15 +234,15 @@ function App() {
               className="send-button"
               disabled={!inputMessage.trim() || isLoading}
             >
-              {isLoading ? '...' : 'Enviar'}
+              {isLoading ? '...' : 'Send'}
             </button>
           </form>
           <div className="controls">
             <button onClick={clearConversation} className="clear-button">
-              Limpiar historial
+              Clear
             </button>
             <button onClick={stopSpeaking} className="clear-button">
-              Detener voz
+              Stop voice
             </button>
           </div>
         </div>
@@ -250,9 +250,9 @@ function App() {
 
       <div className={`status ${isConnected ? 'connected' : 'error'}`}>
         {error ? (
-          <span>⚠️ {error}</span>
+          <span>• {error}</span>
         ) : (
-          <span>{isConnected ? '✅ Conectado' : '❌ Desconectado'}</span>
+          <span>{isConnected ? '• Connected' : '• Disconnected'}</span>
         )}
       </div>
     </div>
