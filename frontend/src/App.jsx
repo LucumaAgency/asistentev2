@@ -458,6 +458,22 @@ function App() {
     console.log('Chat seleccionado:', chatId, 'Mensajes cargados:', chatMessages?.length || 0);
   };
 
+  const handleNewChat = () => {
+    // Limpiar mensajes actuales
+    setMessages([]);
+    
+    // Crear nuevo session ID
+    const newSessionId = uuidv4();
+    setSessionId(newSessionId);
+    localStorage.setItem('sessionId', newSessionId);
+    
+    // Limpiar errores y último mensaje
+    setError('');
+    setLastAssistantMessage('');
+    
+    console.log('Nuevo chat creado con session_id:', newSessionId);
+  };
+
   // Mostrar login si es necesario
   if (showLogin) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -479,6 +495,7 @@ function App() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onChatSelect={handleChatSelect}
+        onNewChat={handleNewChat}
       />
       
       <div className="app">
@@ -490,9 +507,16 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v2.6</h1>
+            <h1>Asistente IA v2.7</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
+          <button 
+            className="new-chat-button"
+            onClick={handleNewChat}
+            title="Nuevo chat"
+          >
+            + Nuevo Chat
+          </button>
           <div className="user-menu">
             {user ? (
               <div className="user-info">

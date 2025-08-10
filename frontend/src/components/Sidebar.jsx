@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
 
-const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatSelect }) => {
+const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatSelect, onNewChat }) => {
   const [modes, setModes] = useState([]);
   const [chats, setChats] = useState({});
   const [isAddingMode, setIsAddingMode] = useState(false);
@@ -558,6 +558,21 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
       <div className="sidebar-section">
         <div className="section-header">
           <h3>CHATS - {currentMode?.name || 'General'}</h3>
+          <button 
+            className="add-button"
+            onClick={() => {
+              if (onNewChat) {
+                onNewChat();
+                // Cerrar sidebar en móviles
+                if (window.innerWidth <= 768 && onClose) {
+                  onClose();
+                }
+              }
+            }}
+            title="Nuevo chat"
+          >
+            +
+          </button>
         </div>
 
         <div className="chats-list">
