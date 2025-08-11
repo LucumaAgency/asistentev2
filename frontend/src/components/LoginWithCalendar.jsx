@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Login.css';
 
+// Configurar axios baseURL
+if (!axios.defaults.baseURL) {
+  axios.defaults.baseURL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : '';
+}
+
 const LoginWithCalendar = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
