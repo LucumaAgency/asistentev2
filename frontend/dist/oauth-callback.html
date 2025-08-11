@@ -102,33 +102,37 @@
       }
       
       // Procesar el código directamente
-      processCode();
-      
-      // También intentar enviar a la ventana principal si existe
-      if (window.opener) {
-        try {
-          window.opener.postMessage({
-            type: 'google-auth-success',
-            code: code
-          }, '*');
-          console.log('Mensaje enviado a ventana principal');
-        } catch (e) {
-          console.error('Error enviando mensaje:', e);
+      processCode().then(() => {
+        // Si es un popup, intentar comunicar con la ventana principal
+        if (window.opener) {
+          try {
+            window.opener.postMessage({
+              type: 'google-auth-success',
+              code: code
+            }, '*');
+            console.log('Mensaje enviado a ventana principal');
+            
+            // Cerrar popup después de enviar mensaje
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          } catch (e) {
+            console.error('Error enviando mensaje:', e);
+            // Si falla, redirigir
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 2000);
+          }
+        } else {
+          // No es un popup, es redirect directo - volver a la app
+          console.log('No hay window.opener, redirigiendo a la app principal...');
+          
+          // Esperar un poco para que el usuario vea el mensaje de éxito
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
         }
-        
-        // Mostrar mensaje de éxito
-        document.querySelector('h1').textContent = '✅ Procesando autorización...';
-        document.querySelector('p').textContent = 'Por favor espera...';
-        
-        setTimeout(() => {
-          window.close();
-        }, 3000);
-      } else {
-        console.log('No hay window.opener, procesando solo en servidor');
-        setTimeout(() => {
-          window.close();
-        }, 3000);
-      }
+      });
     } else {
       document.getElementById('error').textContent = 'Error: No se recibió código de autorización';
       document.getElementById('error').style.display = 'block';
