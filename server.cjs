@@ -1292,6 +1292,16 @@ async function startServer() {
     
     // Catch-all route DEBE ir al final, después de todas las rutas API
     app.get('*', (req, res) => {
+      // No aplicar catch-all a archivos estáticos
+      if (req.path.startsWith('/assets/') || 
+          req.path.endsWith('.js') || 
+          req.path.endsWith('.css') || 
+          req.path.endsWith('.json') ||
+          req.path.endsWith('.png') ||
+          req.path.endsWith('.jpg') ||
+          req.path.endsWith('.svg')) {
+        return res.status(404).send('Not found');
+      }
       res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
     });
     

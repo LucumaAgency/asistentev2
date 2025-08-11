@@ -827,7 +827,18 @@ const setupAuthRoutes = () => {
 
 // Esta función configurará el catch-all route después de que todas las rutas estén listas
 const setupCatchAllRoute = () => {
+  // Catch-all route for SPA - pero no para assets
   app.get('*', (req, res) => {
+    // No aplicar catch-all a archivos estáticos
+    if (req.path.startsWith('/assets/') || 
+        req.path.endsWith('.js') || 
+        req.path.endsWith('.css') || 
+        req.path.endsWith('.json') ||
+        req.path.endsWith('.png') ||
+        req.path.endsWith('.jpg') ||
+        req.path.endsWith('.svg')) {
+      return res.status(404).send('Not found');
+    }
     res.sendFile(join(__dirname, 'frontend', 'dist', 'index.html'));
   });
 };
