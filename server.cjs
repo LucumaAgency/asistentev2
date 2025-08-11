@@ -672,12 +672,15 @@ app.post('/api/chat', async (req, res) => {
     
     // Manejar function calling si el modelo quiere usar herramientas
     if (completion.choices[0].message.tool_calls) {
+      console.log('🛠️ El modelo quiere usar herramientas');
       const toolCalls = completion.choices[0].message.tool_calls;
       const toolResults = [];
       
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
+        console.log(`📞 Llamando función: ${functionName}`);
+        console.log('   Argumentos:', functionArgs);
         
         let result;
         switch (functionName) {
@@ -685,7 +688,9 @@ app.post('/api/chat', async (req, res) => {
             result = calendarFunctions.get_current_datetime();
             break;
           case 'schedule_meeting':
+            console.log('🗓️ Ejecutando schedule_meeting con tokens:', userTokens ? 'Disponibles' : 'No disponibles');
             result = await calendarFunctions.schedule_meeting(functionArgs, userTokens);
+            console.log('   Resultado:', result);
             break;
           case 'check_availability':
             result = await calendarFunctions.check_availability(functionArgs, userTokens);
