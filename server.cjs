@@ -472,13 +472,37 @@ app.post('/api/chat', async (req, res) => {
         try {
           // Decodificar el JWT para obtener el user_id
           const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
-          logger.writeLog('👤 Usuario autenticado:', { email: decoded.email, id: decoded.id });
+          logger.writeLog('👤 Usuario autenticado:', { 
+            email: decoded.email, 
+            id: decoded.id,
+            idType: typeof decoded.id,
+            idLength: decoded.id?.toString().length 
+          });
           
           if (decoded.id) {
-            // Obtener tokens de Google del usuario
+            // Si el ID es un string largo (google_id), necesitamos obtener el ID numérico real
+            let realUserId = decoded.id;
+            
+            // Si el ID es un string largo (>10 chars), es probablemente el google_id
+            if (typeof decoded.id === 'string' && decoded.id.length > 10) {
+              logger.writeLog('🔍 ID parece ser google_id, buscando ID real en users...');
+              const [users] = await db.execute(
+                'SELECT id FROM users WHERE google_id = ?',
+                [decoded.id]
+              );
+              
+              if (users.length > 0) {
+                realUserId = users[0].id;
+                logger.writeLog('✅ ID real encontrado:', realUserId);
+              } else {
+                logger.writeLog('❌ No se encontró usuario con google_id:', decoded.id);
+              }
+            }
+            
+            // Obtener tokens de Google del usuario usando el ID real
             const [tokens] = await db.execute(
               'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
-              [decoded.id]
+              [realUserId]
             );
             
             if (tokens.length > 0) {
