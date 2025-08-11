@@ -7,6 +7,7 @@ const mysql = require('mysql2/promise');
 const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const GoogleCalendarService = require('./services/googleCalendar.cjs');
 
 dotenv.config();
 
@@ -285,6 +286,9 @@ app.get('/api/conversations/:session_id', async (req, res) => {
   }
 });
 
+// Instancia del servicio de Google Calendar
+const calendarService = new GoogleCalendarService();
+
 // Funciones de calendario helpers
 const calendarFunctions = {
   get_current_datetime: () => {
@@ -304,29 +308,124 @@ const calendarFunctions = {
     };
   },
   
-  schedule_meeting: async (params) => {
-    // Por ahora, simulamos el agendamiento
-    // Aquí se integraría con Google Calendar API
-    return {
-      success: true,
-      meeting_id: 'meet_' + Date.now(),
-      meet_link: 'https://meet.google.com/abc-defg-hij',
-      message: `Reunión "${params.title}" agendada para ${params.date} a las ${params.time}`
-    };
+  schedule_meeting: async (params, userTokens) => {
+    try {
+      // Si tenemos tokens del usuario, usar el servicio real
+      if (userTokens && userTokens.access_token) {
+        calendarService.setCredentials(userTokens);
+        
+        const result = await calendarService.createEvent({
+          title: params.title,
+          date: params.date,
+          time: params.time,
+          duration: params.duration || 30,
+          attendees: params.attendees || [],
+          description: params.description || '',
+          add_meet: params.add_meet !== false // Por defecto agregar Google Meet
+        });
+        
+        return {
+          success: true,
+          meeting_id: result.eventId,
+          meet_link: result.meetLink,
+          calendar_link: result.htmlLink,
+          message: `✅ Reunión "${params.title}" agendada exitosamente para ${params.date} a las ${params.time}. ${result.meetLink ? 'Link de Google Meet incluido.' : ''}`
+        };
+      } else {
+        // Modo simulación si no hay tokens
+        return {
+          success: true,
+          meeting_id: 'sim_' + Date.now(),
+          meet_link: 'https://meet.google.com/sim-demo-test',
+          message: `📅 [SIMULACIÓN] Reunión "${params.title}" agendada para ${params.date} a las ${params.time}. Para agendar realmente, necesitas autorizar el acceso a Google Calendar.`,
+          simulated: true
+        };
+      }
+    } catch (error) {
+      console.error('Error agendando reunión:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: `❌ Error al agendar la reunión: ${error.message}`
+      };
+    }
   },
   
-  check_availability: async (params) => {
-    // Simular verificación de disponibilidad
-    return {
-      available: true,
-      conflicts: []
-    };
+  check_availability: async (params, userTokens) => {
+    try {
+      if (userTokens && userTokens.access_token) {
+        calendarService.setCredentials(userTokens);
+        
+        const result = await calendarService.checkAvailability(
+          params.date,
+          params.time,
+          params.duration || 30
+        );
+        
+        return result;
+      } else {
+        // Simulación
+        return {
+          available: true,
+          conflicts: [],
+          simulated: true
+        };
+      }
+    } catch (error) {
+      console.error('Error verificando disponibilidad:', error);
+      return {
+        available: true,
+        conflicts: [],
+        error: error.message
+      };
+    }
+  },
+  
+  find_next_available: async (params, userTokens) => {
+    try {
+      if (userTokens && userTokens.access_token) {
+        calendarService.setCredentials(userTokens);
+        
+        const result = await calendarService.findNextAvailableSlot(
+          params.duration || 30,
+          params.startFrom ? new Date(params.startFrom) : new Date()
+        );
+        
+        return result;
+      } else {
+        // Simulación
+        const nextSlot = new Date();
+        nextSlot.setHours(nextSlot.getHours() + 1, 0, 0, 0);
+        
+        return {
+          available: true,
+          suggestedTime: nextSlot.toISOString(),
+          suggestedTimeFormatted: nextSlot.toLocaleString('es-ES'),
+          simulated: true
+        };
+      }
+    } catch (error) {
+      console.error('Error buscando horario disponible:', error);
+      return {
+        available: false,
+        error: error.message
+      };
+    }
   }
 };
 
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
+    
+    // Obtener tokens del usuario si está autenticado
+    let userTokens = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      // TODO: Aquí deberíamos obtener los tokens de Google Calendar del usuario
+      // Por ahora lo dejamos como null para usar modo simulación
+    }
 
     if (!message || !session_id) {
       return res.status(400).json({ error: 'message y session_id son requeridos' });
@@ -530,10 +629,13 @@ app.post('/api/chat', async (req, res) => {
             result = calendarFunctions.get_current_datetime();
             break;
           case 'schedule_meeting':
-            result = await calendarFunctions.schedule_meeting(functionArgs);
+            result = await calendarFunctions.schedule_meeting(functionArgs, userTokens);
             break;
           case 'check_availability':
-            result = await calendarFunctions.check_availability(functionArgs);
+            result = await calendarFunctions.check_availability(functionArgs, userTokens);
+            break;
+          case 'find_next_available':
+            result = await calendarFunctions.find_next_available(functionArgs, userTokens);
             break;
           default:
             result = { error: 'Función no encontrada' };
@@ -759,6 +861,41 @@ app.delete('/api/modes/:mode_id', async (req, res) => {
   } catch (error) {
     console.error('Error eliminando modo:', error);
     res.status(500).json({ error: 'Error al eliminar modo' });
+  }
+});
+
+// ======== CALENDAR AUTHORIZATION ENDPOINTS ========
+app.get('/api/calendar/auth-url', (req, res) => {
+  try {
+    const authUrl = calendarService.getAuthUrl();
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('Error generando URL de autorización:', error);
+    res.status(500).json({ error: 'Error al generar URL de autorización' });
+  }
+});
+
+app.post('/api/calendar/auth-callback', async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'Código de autorización no proporcionado' });
+    }
+    
+    const tokens = await calendarService.getTokens(code);
+    
+    // TODO: Guardar tokens en la base de datos asociados al usuario
+    // Por ahora los devolvemos para que el frontend los guarde
+    
+    res.json({ 
+      success: true,
+      tokens,
+      message: 'Calendario autorizado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error procesando autorización:', error);
+    res.status(500).json({ error: 'Error al procesar autorización' });
   }
 });
 
