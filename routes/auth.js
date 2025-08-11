@@ -158,10 +158,16 @@ export const createAuthRoutes = (db) => {
       let user = null;
       if (db) {
         user = await createOrUpdateUser(db, googleData);
+        console.log('👥 Usuario obtenido de BD:', {
+          id: user.id,
+          email: user.email,
+          google_id: user.google_id,
+          id_type: typeof user.id
+        });
         
         // Si tenemos tokens OAuth (de Calendar), guardarlos
         if (oauthTokens && user.id) {
-          console.log('💾 Guardando tokens de Calendar para usuario:', user.id);
+          console.log('💾 Guardando tokens de Calendar para usuario ID:', user.id, '(tipo:', typeof user.id, ')');
           await saveCalendarTokens(db, user.id, oauthTokens);
         }
       } else {
