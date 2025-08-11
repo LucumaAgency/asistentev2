@@ -1232,16 +1232,47 @@ app.get('/api/auth/config-check', (req, res) => {
 
 // Esta función se llamará después de inicializar la BD
 const setupAuthRoutes = () => {
+  console.log('🔄 setupAuthRoutes llamado - reconfigurando rutas con BD...');
+  console.log('   DB disponible:', !!db);
+  
   // Remover rutas anteriores si existen
+  const beforeCount = app._router.stack.length;
   app._router.stack = app._router.stack.filter(layer => {
-    return !layer.route || !layer.route.path || !layer.route.path.startsWith('/api/auth');
+    const isAuthRoute = layer.regexp && layer.regexp.toString().includes('/api/auth');
+    if (isAuthRoute) {
+      console.log('   Removiendo ruta auth anterior:', layer.regexp.toString());
+    }
+    return !isAuthRoute;
   });
+  const afterCount = app._router.stack.length;
+  console.log(`   Rutas removidas: ${beforeCount - afterCount}`);
   
   // Configurar nuevas rutas con BD
   const authRoutes = createAuthRoutes(db);
   app.use('/api/auth', authRoutes);
   console.log('✅ Auth routes reconfigured with database connection');
+  
+  // Log para verificar
+  const logger = new Logger();
+  logger.writeLog('🔄 AUTH ROUTES RECONFIGURADAS CON BD', {
+    timestamp: new Date().toISOString(),
+    dbConnected: !!db,
+    stackSize: app._router.stack.length
+  });
 };
+
+// Middleware para loguear TODAS las peticiones a /api/auth
+app.use('/api/auth/*', (req, res, next) => {
+  const logger = new Logger();
+  logger.writeLog(`📨 REQUEST A ${req.method} ${req.originalUrl}`, {
+    method: req.method,
+    url: req.originalUrl,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    timestamp: new Date().toISOString()
+  });
+  next();
+});
 
 // IMPORTANTE: Configurar auth routes inmediatamente (funcionarán sin BD temporalmente)
 const authRoutes = createAuthRoutes(null);
