@@ -14,6 +14,14 @@ const client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/api/auth/google/callback'
 );
 
+// Scopes requeridos para Calendar
+const SCOPES = [
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar'
+];
+
 // Función para verificar el token de Google
 const verifyGoogleToken = async (token) => {
   try {
@@ -162,21 +170,54 @@ const createAuthRoutes = (db) => {
     });
   });
 
-  // Login con Google
+  // Obtener URL de autorización con scopes de Calendar
+  router.get('/google/auth-url', (req, res) => {
+    const authUrl = client.generateAuthUrl({
+      access_type: 'offline',
+      scope: SCOPES,
+      prompt: 'consent'
+    });
+    res.json({ authUrl });
+  });
+
+  // Login con Google (soporta tanto ID Token como Code Flow)
   router.post('/google', async (req, res) => {
     try {
       console.log('📍 Recibiendo login con Google');
-      const { credential } = req.body;
+      const { credential, code } = req.body;
 
-      if (!credential) {
-        console.log('❌ No se recibió credential');
-        return res.status(400).json({ error: 'Token de Google no proporcionado' });
+      let googleData, googleTokens;
+
+      // Si viene un código de autorización (OAuth Code Flow)
+      if (code) {
+        console.log('🔐 Procesando código de autorización OAuth');
+        const { tokens } = await client.getToken(code);
+        googleTokens = tokens;
+        
+        // Verificar y decodificar el ID token
+        const ticket = await client.verifyIdToken({
+          idToken: tokens.id_token,
+          audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        const payload = ticket.getPayload();
+        googleData = {
+          googleId: payload['sub'],
+          email: payload['email'],
+          name: payload['name'],
+          picture: payload['picture'],
+          emailVerified: payload['email_verified'],
+          locale: payload['locale']
+        };
+      } 
+      // Si viene un credential (ID Token directo - login simple)
+      else if (credential) {
+        console.log('🔍 Verificando token con Google...');
+        console.log('   Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Configurado' : 'NO CONFIGURADO');
+        googleData = await verifyGoogleToken(credential);
+      } else {
+        return res.status(400).json({ error: 'No se proporcionó credential ni code' });
       }
-
-      console.log('🔍 Verificando token con Google...');
-      console.log('   Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Configurado' : 'NO CONFIGURADO');
-      
-      const googleData = await verifyGoogleToken(credential);
 
       if (!googleData.emailVerified) {
         return res.status(400).json({ error: 'Email no verificado' });
@@ -186,6 +227,27 @@ const createAuthRoutes = (db) => {
       const token = generateToken(user);
       const refreshToken = generateRefreshToken(user);
 
+      // Guardar tokens de Google si existen (para Calendar)
+      if (db && user.id && googleTokens) {
+        await db.execute(
+          `INSERT INTO user_tokens (user_id, access_token, refresh_token, token_type, scope, expires_at) 
+           VALUES (?, ?, ?, ?, ?, ?) 
+           ON DUPLICATE KEY UPDATE 
+           access_token = VALUES(access_token), 
+           refresh_token = VALUES(refresh_token),
+           expires_at = VALUES(expires_at)`,
+          [
+            user.id,
+            googleTokens.access_token,
+            googleTokens.refresh_token,
+            googleTokens.token_type || 'Bearer',
+            googleTokens.scope || SCOPES.join(' '),
+            googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
+          ]
+        );
+        console.log('✅ Tokens de Google Calendar guardados');
+      }
+
       if (db && user.id) {
         await createSession(db, user.id, token, refreshToken);
       }
@@ -194,6 +256,7 @@ const createAuthRoutes = (db) => {
         success: true,
         token,
         refreshToken,
+        hasCalendarAccess: !!googleTokens,
         user: {
           id: user.id,
           email: user.email,

@@ -7,6 +7,7 @@ const mysql = require('mysql2/promise');
 const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
 
 dotenv.config();
@@ -151,6 +152,22 @@ async function initDatabase() {
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS user_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        token_type VARCHAR(50) DEFAULT 'Bearer',
+        scope TEXT,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user (user_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
@@ -421,10 +438,33 @@ app.post('/api/chat', async (req, res) => {
     // Obtener tokens del usuario si está autenticado
     let userTokens = null;
     const authHeader = req.headers['authorization'];
-    if (authHeader) {
+    if (authHeader && useDatabase) {
       const token = authHeader.split(' ')[1];
-      // TODO: Aquí deberíamos obtener los tokens de Google Calendar del usuario
-      // Por ahora lo dejamos como null para usar modo simulación
+      
+      try {
+        // Decodificar el JWT para obtener el user_id
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
+        
+        if (decoded.id) {
+          // Obtener tokens de Google del usuario
+          const [tokens] = await db.execute(
+            'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
+            [decoded.id]
+          );
+          
+          if (tokens.length > 0) {
+            userTokens = {
+              access_token: tokens[0].access_token,
+              refresh_token: tokens[0].refresh_token,
+              token_type: tokens[0].token_type,
+              expiry_date: tokens[0].expires_at ? new Date(tokens[0].expires_at).getTime() : null
+            };
+            console.log('✅ Tokens de Calendar obtenidos para el usuario');
+          }
+        }
+      } catch (error) {
+        console.log('No se pudieron obtener tokens de Calendar:', error.message);
+      }
     }
 
     if (!message || !session_id) {
