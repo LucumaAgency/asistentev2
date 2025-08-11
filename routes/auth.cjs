@@ -172,12 +172,18 @@ const createAuthRoutes = (db) => {
 
   // Obtener URL de autorización con scopes de Calendar
   router.get('/google/auth-url', (req, res) => {
-    const authUrl = client.generateAuthUrl({
-      access_type: 'offline',
-      scope: SCOPES,
-      prompt: 'consent'
-    });
-    res.json({ authUrl });
+    try {
+      const authUrl = client.generateAuthUrl({
+        access_type: 'offline',
+        scope: SCOPES,
+        prompt: 'consent',
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
+      });
+      res.json({ authUrl });
+    } catch (error) {
+      console.error('Error generando URL de autorización:', error);
+      res.status(500).json({ error: 'Error generando URL de autorización' });
+    }
   });
 
   // Login con Google (soporta tanto ID Token como Code Flow)
