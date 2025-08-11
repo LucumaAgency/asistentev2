@@ -16,7 +16,7 @@ const SCOPES = [
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth-callback.html'
+  process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
 );
 
 // Función para crear o actualizar usuario en la BD
@@ -109,17 +109,46 @@ const saveCalendarTokens = async (db, userId, tokens) => {
 };
 
 export const createAuthRoutes = (db) => {
-  // Endpoint para login con Google
+  // Endpoint combinado para login con Google (soporta ID Token y OAuth Code)
   router.post('/google', async (req, res) => {
     try {
-      const { credential } = req.body;
-
-      if (!credential) {
-        return res.status(400).json({ error: 'Token de Google no proporcionado' });
+      const { credential, code } = req.body;
+      
+      let googleData;
+      let oauthTokens = null;
+      
+      // Si viene un código OAuth (Calendar authorization)
+      if (code) {
+        console.log('🔐 Procesando código OAuth para Calendar');
+        
+        // Obtener tokens usando el código
+        const { tokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(tokens);
+        oauthTokens = tokens;
+        
+        // Obtener información del usuario desde el ID token
+        const ticket = await oauth2Client.verifyIdToken({
+          idToken: tokens.id_token,
+          audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        const payload = ticket.getPayload();
+        googleData = {
+          googleId: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+          emailVerified: payload.email_verified,
+          locale: payload.locale
+        };
       }
-
-      // Verificar el token de Google
-      const googleData = await verifyGoogleToken(credential);
+      // Si viene un credential (ID Token directo)
+      else if (credential) {
+        console.log('🔐 Procesando ID Token');
+        googleData = await verifyGoogleToken(credential);
+      } else {
+        return res.status(400).json({ error: 'No se proporcionó credential ni code' });
+      }
 
       if (!googleData.emailVerified) {
         return res.status(400).json({ error: 'Email no verificado' });
@@ -129,6 +158,12 @@ export const createAuthRoutes = (db) => {
       let user = null;
       if (db) {
         user = await createOrUpdateUser(db, googleData);
+        
+        // Si tenemos tokens OAuth (de Calendar), guardarlos
+        if (oauthTokens && user.id) {
+          console.log('💾 Guardando tokens de Calendar para usuario:', user.id);
+          await saveCalendarTokens(db, user.id, oauthTokens);
+        }
       } else {
         // Si no hay BD, crear usuario temporal
         user = {
@@ -139,7 +174,7 @@ export const createAuthRoutes = (db) => {
         };
       }
 
-      // Generar tokens
+      // Generar tokens JWT
       const token = generateToken(user);
       const refreshToken = generateRefreshToken(user);
 
@@ -157,11 +192,15 @@ export const createAuthRoutes = (db) => {
           email: user.email,
           name: user.name,
           picture: user.picture
-        }
+        },
+        hasCalendarAccess: !!oauthTokens
       });
     } catch (error) {
       console.error('Error en login con Google:', error);
-      res.status(500).json({ error: 'Error al autenticar con Google' });
+      res.status(500).json({ 
+        error: 'Error al autenticar con Google',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -228,7 +267,7 @@ export const createAuthRoutes = (db) => {
         access_type: 'offline',
         scope: SCOPES,
         prompt: 'consent',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth-callback.html'
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
       });
       
       console.log('✅ URL de autorización generada');
@@ -239,91 +278,7 @@ export const createAuthRoutes = (db) => {
     }
   });
   
-  // Endpoint para procesar código OAuth y obtener tokens
-  router.post('/google', async (req, res) => {
-    try {
-      const { code } = req.body;
-      
-      if (!code) {
-        return res.status(400).json({ error: 'Código de autorización requerido' });
-      }
-      
-      console.log('🔐 Procesando código OAuth');
-      
-      // Obtener tokens usando el código
-      const { tokens } = await oauth2Client.getToken(code);
-      oauth2Client.setCredentials(tokens);
-      
-      // Obtener información del usuario
-      const ticket = await oauth2Client.verifyIdToken({
-        idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID
-      });
-      
-      const payload = ticket.getPayload();
-      const googleData = {
-        googleId: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture,
-        locale: payload.locale
-      };
-      
-      // Crear o actualizar usuario
-      let user;
-      if (db) {
-        user = await createOrUpdateUser(db, googleData);
-        
-        // Guardar tokens de Calendar
-        await saveCalendarTokens(db, user.id, tokens);
-        
-        // Crear sesión
-        const token = generateToken(user);
-        const refreshToken = generateRefreshToken(user);
-        await createSession(db, user.id, token, refreshToken);
-        
-        console.log('✅ Usuario autenticado y tokens guardados:', user.email);
-        
-        res.json({
-          success: true,
-          token,
-          refreshToken,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            picture: user.picture
-          },
-          hasCalendarAccess: true
-        });
-      } else {
-        // Si no hay BD, devolver datos temporales
-        const tempUser = {
-          id: googleData.googleId,
-          email: googleData.email,
-          name: googleData.name,
-          picture: googleData.picture
-        };
-        
-        const token = generateToken(tempUser);
-        const refreshToken = generateRefreshToken(tempUser);
-        
-        res.json({
-          success: true,
-          token,
-          refreshToken,
-          user: tempUser,
-          hasCalendarAccess: true
-        });
-      }
-    } catch (error) {
-      console.error('Error procesando código OAuth:', error);
-      res.status(500).json({ 
-        error: 'Error al procesar autorización',
-        details: error.message 
-      });
-    }
-  });
+  // NOTA: El endpoint POST /google ya maneja tanto ID Token como OAuth Code
   
   // Endpoint para logout
   router.post('/logout', async (req, res) => {
