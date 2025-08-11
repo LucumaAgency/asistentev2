@@ -228,16 +228,22 @@ const createAuthRoutes = (db) => {
       logger = new Logger();
     } catch (e) {
       // Si no hay logger, usar console
-      logger = { writeLog: console.log };
+      logger = { writeLog: console.log, logError: console.error };
     }
     
     try {
       console.log('📍 Recibiendo login con Google');
       console.log('   Tipo de auth:', req.body.code ? 'OAuth Code Flow' : req.body.credential ? 'ID Token' : 'Desconocido');
-      logger.writeLog('🔐 POST /api/auth/google recibido', {
+      console.log('   Body completo:', JSON.stringify(req.body).substring(0, 200));
+      
+      logger.writeLog('🔐 ==========POST /api/auth/google INICIO==========', {
+        timestamp: new Date().toISOString(),
         hasCode: !!req.body.code,
+        codeLength: req.body.code?.length,
         hasCredential: !!req.body.credential,
-        headers: req.headers
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        authorization: req.headers.authorization ? 'Present' : 'Missing'
       });
       
       const { credential, code } = req.body;
@@ -390,7 +396,7 @@ const createAuthRoutes = (db) => {
         await createSession(db, user.id, token, refreshToken);
       }
 
-      res.json({
+      const responseData = {
         success: true,
         token,
         refreshToken,
@@ -401,10 +407,26 @@ const createAuthRoutes = (db) => {
           name: user.name,
           picture: user.picture
         }
+      };
+      
+      logger.writeLog('✅ ==========POST /api/auth/google ÉXITO==========', {
+        userId: user.id,
+        userEmail: user.email,
+        hasCalendarAccess: !!googleTokens,
+        tokensWereSaved: !!(db && user.id && googleTokens)
       });
+      
+      res.json(responseData);
     } catch (error) {
       console.error('❌ Error en login con Google:', error.message);
       console.error('   Detalles:', error);
+      
+      logger.writeLog('❌ ==========POST /api/auth/google ERROR==========', {
+        error: error.message,
+        stack: error.stack,
+        details: error.response?.data
+      });
+      
       res.status(500).json({ 
         error: 'Error al autenticar con Google',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
