@@ -60,39 +60,103 @@
     const code = urlParams.get('code');
     const error = urlParams.get('error');
     
+    console.log('OAuth Callback - Parámetros recibidos:', { code: code?.substring(0, 20) + '...', error });
+    
     if (error) {
       document.getElementById('error').textContent = 'Autorización cancelada: ' + error;
       document.getElementById('error').style.display = 'block';
       document.querySelector('.spinner').style.display = 'none';
       
       setTimeout(() => {
-        window.close();
+        window.location.href = '/';
       }, 3000);
     } else if (code) {
-      // Enviar el código a la ventana principal
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'google-auth-success',
-          code: code
-        }, '*');
-        
-        // Mostrar mensaje de éxito
-        document.querySelector('h1').textContent = '✅ Autorización exitosa';
-        document.querySelector('p').textContent = 'Esta ventana se cerrará automáticamente...';
-        document.querySelector('.spinner').style.display = 'none';
-        
-        setTimeout(() => {
-          window.close();
-        }, 2000);
-      } else {
-        document.getElementById('error').textContent = 'Error: No se puede comunicar con la ventana principal';
-        document.getElementById('error').style.display = 'block';
-        document.querySelector('.spinner').style.display = 'none';
+      console.log('Procesando código OAuth...');
+      
+      // Función para procesar el código
+      async function processCode() {
+        try {
+          console.log('Enviando código al servidor...');
+          const response = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': localStorage.getItem('authToken') ? `Bearer ${localStorage.getItem('authToken')}` : ''
+            },
+            body: JSON.stringify({ code: code })
+          });
+          
+          console.log('Respuesta recibida, status:', response.status);
+          const data = await response.json();
+          console.log('Datos de respuesta:', data);
+          
+          if (data.success) {
+            // Guardar tokens y usuario
+            if (data.token) {
+              localStorage.setItem('authToken', data.token);
+              console.log('Token guardado');
+            }
+            if (data.refreshToken) {
+              localStorage.setItem('refreshToken', data.refreshToken);
+              console.log('Refresh token guardado');
+            }
+            if (data.user) {
+              localStorage.setItem('user', JSON.stringify(data.user));
+              console.log('Usuario guardado:', data.user.email);
+            }
+            
+            document.querySelector('h1').textContent = '✅ Autorización exitosa';
+            document.querySelector('p').textContent = 'Redirigiendo a la aplicación...';
+            document.querySelector('.spinner').style.display = 'none';
+            
+            // Redirigir después de mostrar mensaje
+            setTimeout(() => {
+              console.log('Redirigiendo a /');
+              window.location.href = '/';
+            }, 1500);
+            
+            return true;
+          } else {
+            // Error en la respuesta
+            const errorMsg = data.error || 'Error desconocido';
+            console.error('Error en respuesta:', errorMsg);
+            document.getElementById('error').textContent = 'Error: ' + errorMsg;
+            document.getElementById('error').style.display = 'block';
+            document.querySelector('.spinner').style.display = 'none';
+            
+            // Redirigir después de mostrar error
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 3000);
+            
+            return false;
+          }
+        } catch (error) {
+          console.error('Error procesando código:', error);
+          document.getElementById('error').textContent = 'Error: ' + error.message;
+          document.getElementById('error').style.display = 'block';
+          document.querySelector('.spinner').style.display = 'none';
+          
+          // Redirigir después de mostrar error
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 3000);
+          
+          return false;
+        }
       }
+      
+      // Procesar el código inmediatamente
+      processCode();
+      
     } else {
       document.getElementById('error').textContent = 'Error: No se recibió código de autorización';
       document.getElementById('error').style.display = 'block';
       document.querySelector('.spinner').style.display = 'none';
+      
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
     }
   </script>
 </body>
