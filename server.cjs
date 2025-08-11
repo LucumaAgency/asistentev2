@@ -1230,40 +1230,7 @@ app.get('/api/auth/config-check', (req, res) => {
   });
 });
 
-// Esta función se llamará después de inicializar la BD
-const setupAuthRoutes = () => {
-  console.log('🔄 setupAuthRoutes llamado - reconfigurando rutas con BD...');
-  console.log('   DB disponible:', !!db);
-  
-  // Remover rutas anteriores si existen
-  const beforeCount = app._router.stack.length;
-  app._router.stack = app._router.stack.filter(layer => {
-    const isAuthRoute = layer.regexp && layer.regexp.toString().includes('/api/auth');
-    if (isAuthRoute) {
-      console.log('   Removiendo ruta auth anterior:', layer.regexp.toString());
-    }
-    return !isAuthRoute;
-  });
-  const afterCount = app._router.stack.length;
-  console.log(`   Rutas removidas: ${beforeCount - afterCount}`);
-  
-  // Configurar nuevas rutas con BD
-  const authRoutes = createAuthRoutes(db);
-  app.use('/api/auth', authRoutes);
-  console.log('✅ Auth routes reconfigured with database connection');
-  
-  // Log para verificar
-  try {
-    const logger = new Logger();
-    logger.writeLog('🔄 AUTH ROUTES RECONFIGURADAS CON BD', {
-      timestamp: new Date().toISOString(),
-      dbConnected: !!db,
-      stackSize: app._router.stack.length
-    });
-  } catch (e) {
-    console.log('🔄 AUTH ROUTES RECONFIGURADAS CON BD (Logger no disponible)')
-  }
-};
+// Función removida - ya no necesaria
 
 // Middleware para loguear TODAS las peticiones a /api/auth
 app.use('/api/auth/*', (req, res, next) => {
@@ -1282,10 +1249,8 @@ app.use('/api/auth/*', (req, res, next) => {
   next();
 });
 
-// IMPORTANTE: Configurar auth routes inmediatamente (funcionarán sin BD temporalmente)
-const authRoutes = createAuthRoutes(null);
-app.use('/api/auth', authRoutes);
-console.log('⚠️ Auth routes configured WITHOUT database (temporary)');
+// NO configurar auth routes aquí - esperar a que la BD esté lista
+console.log('⏳ Auth routes pendientes - esperando conexión a BD...');
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
@@ -1304,12 +1269,21 @@ async function startServer() {
     
     await initDatabase();
     
-    // Reconfigurar rutas de autenticación con la BD conectada
+    // SIEMPRE configurar auth routes después de inicializar BD
+    const authRoutes = createAuthRoutes(db);
+    app.use('/api/auth', authRoutes);
+    
     if (useDatabase && db) {
-      setupAuthRoutes();
-      console.log('✅ Rutas de autenticación reconfiguradas con BD');
+      console.log('✅ Rutas de autenticación configuradas CON base de datos');
+      try {
+        const logger = new Logger();
+        logger.writeLog('✅ AUTH ROUTES CONFIGURADAS CON BD AL INICIO', {
+          timestamp: new Date().toISOString(),
+          dbConnected: true
+        });
+      } catch (e) {}
     } else {
-      console.log('⚠️ Rutas de autenticación sin BD')
+      console.log('⚠️ Rutas de autenticación configuradas SIN base de datos');
     }
     
     app.listen(PORT, () => {
