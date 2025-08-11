@@ -327,8 +327,13 @@ const calendarFunctions = {
   
   schedule_meeting: async (params, userTokens) => {
     try {
+      console.log('📅 Función schedule_meeting llamada');
+      console.log('   Parámetros:', params);
+      console.log('   Tokens disponibles:', userTokens ? '✅ Sí' : '❌ No');
+      
       // Si tenemos tokens del usuario, usar el servicio real
       if (userTokens && userTokens.access_token) {
+        console.log('🔐 Usando tokens reales para Calendar');
         calendarService.setCredentials(userTokens);
         
         const result = await calendarService.createEvent({
