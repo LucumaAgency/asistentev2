@@ -1253,24 +1253,32 @@ const setupAuthRoutes = () => {
   console.log('✅ Auth routes reconfigured with database connection');
   
   // Log para verificar
-  const logger = new Logger();
-  logger.writeLog('🔄 AUTH ROUTES RECONFIGURADAS CON BD', {
-    timestamp: new Date().toISOString(),
-    dbConnected: !!db,
-    stackSize: app._router.stack.length
-  });
+  try {
+    const logger = new Logger();
+    logger.writeLog('🔄 AUTH ROUTES RECONFIGURADAS CON BD', {
+      timestamp: new Date().toISOString(),
+      dbConnected: !!db,
+      stackSize: app._router.stack.length
+    });
+  } catch (e) {
+    console.log('🔄 AUTH ROUTES RECONFIGURADAS CON BD (Logger no disponible)')
+  }
 };
 
 // Middleware para loguear TODAS las peticiones a /api/auth
 app.use('/api/auth/*', (req, res, next) => {
-  const logger = new Logger();
-  logger.writeLog(`📨 REQUEST A ${req.method} ${req.originalUrl}`, {
-    method: req.method,
-    url: req.originalUrl,
-    hasBody: !!req.body,
-    bodyKeys: req.body ? Object.keys(req.body) : [],
-    timestamp: new Date().toISOString()
-  });
+  try {
+    const logger = new Logger();
+    logger.writeLog(`📨 REQUEST A ${req.method} ${req.originalUrl}`, {
+      method: req.method,
+      url: req.originalUrl,
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.log(`📨 REQUEST A ${req.method} ${req.originalUrl}`);
+  }
   next();
 });
 
