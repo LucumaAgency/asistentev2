@@ -14,6 +14,9 @@ class GoogleCalendarService {
 
   // Configurar el token de acceso para el usuario actual
   setCredentials(tokens) {
+    console.log('🔐 GoogleCalendarService: Configurando credenciales');
+    console.log('   Access Token:', tokens.access_token ? `${tokens.access_token.substring(0, 20)}...` : 'NO HAY TOKEN');
+    console.log('   Refresh Token:', tokens.refresh_token ? 'Presente' : 'NO HAY REFRESH TOKEN');
     this.oauth2Client.setCredentials(tokens);
   }
 
@@ -59,6 +62,9 @@ class GoogleCalendarService {
 
   // Crear un evento con Google Meet
   async createEvent(eventDetails) {
+    console.log('📅 GoogleCalendarService.createEvent llamado');
+    console.log('   Detalles del evento:', eventDetails);
+    
     try {
       const event = {
         summary: eventDetails.title,
@@ -92,12 +98,20 @@ class GoogleCalendarService {
         },
       };
 
+      console.log('🚀 Intentando crear evento en Google Calendar...');
+      console.log('   Evento a crear:', JSON.stringify(event, null, 2));
+      
       const response = await this.calendar.events.insert({
         calendarId: 'primary',
         resource: event,
         conferenceDataVersion: 1,
         sendUpdates: 'all' // Enviar invitaciones a los asistentes
       });
+
+      console.log('✅ EVENTO CREADO EXITOSAMENTE EN GOOGLE CALENDAR');
+      console.log('   ID del evento:', response.data.id);
+      console.log('   Link del calendario:', response.data.htmlLink);
+      console.log('   Link de Meet:', response.data.conferenceData?.entryPoints?.[0]?.uri);
 
       return {
         success: true,
@@ -107,7 +121,10 @@ class GoogleCalendarService {
         event: response.data
       };
     } catch (error) {
-      console.error('Error creando evento:', error);
+      console.error('❌ ERROR CREANDO EVENTO EN GOOGLE CALENDAR:');
+      console.error('   Mensaje:', error.message);
+      console.error('   Código:', error.code);
+      console.error('   Detalles:', error.response?.data || error);
       throw error;
     }
   }

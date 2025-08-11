@@ -331,9 +331,11 @@ const calendarFunctions = {
       console.log('   Parámetros:', params);
       console.log('   Tokens disponibles:', userTokens ? '✅ Sí' : '❌ No');
       
-      // Si tenemos tokens del usuario, usar el servicio real
+      // Validación explícita de tokens
       if (userTokens && userTokens.access_token) {
-        console.log('🔐 Usando tokens reales para Calendar');
+        console.log('🔐 INTENTANDO USAR GOOGLE CALENDAR REAL');
+        console.log('   Access token presente:', userTokens.access_token.substring(0, 20) + '...');
+        
         calendarService.setCredentials(userTokens);
         
         const result = await calendarService.createEvent({
@@ -346,15 +348,18 @@ const calendarFunctions = {
           add_meet: params.add_meet !== false // Por defecto agregar Google Meet
         });
         
+        console.log('🎉 EVENTO CREADO - Resultado:', result);
+        
         return {
           success: true,
           meeting_id: result.eventId,
           meet_link: result.meetLink,
           calendar_link: result.htmlLink,
-          message: `✅ Reunión "${params.title}" agendada exitosamente para ${params.date} a las ${params.time}. ${result.meetLink ? 'Link de Google Meet incluido.' : ''}`
+          message: `✅ Reunión "${params.title}" agendada exitosamente para ${params.date} a las ${params.time}. ${result.meetLink ? 'Link de Google Meet: ' + result.meetLink : ''}`
         };
       } else {
         // Modo simulación si no hay tokens
+        console.log('⚠️ NO HAY TOKENS - USANDO MODO SIMULACIÓN');
         return {
           success: true,
           meeting_id: 'sim_' + Date.now(),
