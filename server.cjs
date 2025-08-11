@@ -1157,6 +1157,10 @@ const setupAuthRoutes = () => {
   app.use('/api/auth', authRoutes);
 };
 
+// IMPORTANTE: Configurar auth routes inmediatamente (funcionarán sin BD)
+const authRoutes = createAuthRoutes(null);
+app.use('/api/auth', authRoutes);
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 });
@@ -1175,7 +1179,8 @@ async function startServer() {
     await initDatabase();
     
     // Configurar rutas de autenticación después de inicializar DB
-    setupAuthRoutes();
+    // Auth routes ya configuradas antes del catch-all
+    // setupAuthRoutes();
     console.log('✅ Rutas de autenticación configuradas');
     
     app.listen(PORT, () => {
