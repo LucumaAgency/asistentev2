@@ -1,8 +1,23 @@
 import express from 'express';
+import { OAuth2Client } from 'google-auth-library';
 import { verifyGoogleToken } from '../config/googleAuth.js';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Configuración OAuth2
+const SCOPES = [
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar'
+];
+
+const oauth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth-callback.html'
+);
 
 // Función para crear o actualizar usuario en la BD
 const createOrUpdateUser = async (db, googleData) => {
@@ -63,6 +78,32 @@ const createSession = async (db, userId, token, refreshToken) => {
     );
   } catch (error) {
     console.error('Error creando sesión:', error);
+    throw error;
+  }
+};
+
+// Función para guardar tokens de Calendar
+const saveCalendarTokens = async (db, userId, tokens) => {
+  try {
+    const expiresAt = tokens.expiry_date ? 
+      new Date(tokens.expiry_date) : 
+      new Date(Date.now() + 3600 * 1000); // 1 hora por defecto
+    
+    await db.execute(
+      `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
+       VALUES (?, 'google_calendar', ?, ?, ?) 
+       ON DUPLICATE KEY UPDATE 
+       access_token = VALUES(access_token), 
+       refresh_token = VALUES(refresh_token), 
+       expires_at = VALUES(expires_at),
+       updated_at = CURRENT_TIMESTAMP`,
+      [userId, tokens.access_token, tokens.refresh_token, expiresAt]
+    );
+    
+    console.log('✅ Tokens de Calendar guardados para usuario:', userId);
+    return true;
+  } catch (error) {
+    console.error('Error guardando tokens de Calendar:', error);
     throw error;
   }
 };
@@ -174,6 +215,116 @@ export const createAuthRoutes = (db) => {
     }
   });
 
+  // Endpoint para obtener URL de autorización OAuth
+  router.get('/google/auth-url', (req, res) => {
+    try {
+      console.log('📍 Generando URL de autorización OAuth');
+      
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new Error('GOOGLE_CLIENT_ID no está configurado');
+      }
+      
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: SCOPES,
+        prompt: 'consent',
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/oauth-callback.html'
+      });
+      
+      console.log('✅ URL de autorización generada');
+      res.json({ authUrl });
+    } catch (error) {
+      console.error('Error generando URL de autorización:', error);
+      res.status(500).json({ error: 'Error al generar URL de autorización' });
+    }
+  });
+  
+  // Endpoint para procesar código OAuth y obtener tokens
+  router.post('/google', async (req, res) => {
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: 'Código de autorización requerido' });
+      }
+      
+      console.log('🔐 Procesando código OAuth');
+      
+      // Obtener tokens usando el código
+      const { tokens } = await oauth2Client.getToken(code);
+      oauth2Client.setCredentials(tokens);
+      
+      // Obtener información del usuario
+      const ticket = await oauth2Client.verifyIdToken({
+        idToken: tokens.id_token,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      
+      const payload = ticket.getPayload();
+      const googleData = {
+        googleId: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        locale: payload.locale
+      };
+      
+      // Crear o actualizar usuario
+      let user;
+      if (db) {
+        user = await createOrUpdateUser(db, googleData);
+        
+        // Guardar tokens de Calendar
+        await saveCalendarTokens(db, user.id, tokens);
+        
+        // Crear sesión
+        const token = generateToken(user);
+        const refreshToken = generateRefreshToken(user);
+        await createSession(db, user.id, token, refreshToken);
+        
+        console.log('✅ Usuario autenticado y tokens guardados:', user.email);
+        
+        res.json({
+          success: true,
+          token,
+          refreshToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture
+          },
+          hasCalendarAccess: true
+        });
+      } else {
+        // Si no hay BD, devolver datos temporales
+        const tempUser = {
+          id: googleData.googleId,
+          email: googleData.email,
+          name: googleData.name,
+          picture: googleData.picture
+        };
+        
+        const token = generateToken(tempUser);
+        const refreshToken = generateRefreshToken(tempUser);
+        
+        res.json({
+          success: true,
+          token,
+          refreshToken,
+          user: tempUser,
+          hasCalendarAccess: true
+        });
+      }
+    } catch (error) {
+      console.error('Error procesando código OAuth:', error);
+      res.status(500).json({ 
+        error: 'Error al procesar autorización',
+        details: error.message 
+      });
+    }
+  });
+  
   // Endpoint para logout
   router.post('/logout', async (req, res) => {
     try {

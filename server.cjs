@@ -114,7 +114,7 @@ async function initDatabase() {
     const connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'ai_assistant_user',
-      password: process.env.DB_PASSWORD || 'secure_password_2024',
+      password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'secure_password_2024',
       database: process.env.DB_NAME || 'ai_assistant_db',
       waitForConnections: true,
       connectionLimit: 10,

@@ -69,7 +69,7 @@ async function initDatabase() {
     const connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'ai_assistant_user',
-      password: process.env.DB_PASSWORD || 'secure_password_2024',
+      password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'secure_password_2024',
       database: process.env.DB_NAME || 'ai_assistant_db',
       waitForConnections: true,
       connectionLimit: 10,
@@ -789,10 +789,12 @@ const setupAuthRoutes = () => {
   app.use('/api/auth', authRoutes);
 };
 
-// Catch-all route for SPA - MUST be last
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'frontend', 'dist', 'index.html'));
-});
+// Esta función configurará el catch-all route después de que todas las rutas estén listas
+const setupCatchAllRoute = () => {
+  app.get('*', (req, res) => {
+    res.sendFile(join(__dirname, 'frontend', 'dist', 'index.html'));
+  });
+};
 
 async function startServer() {
   console.log('========================================');
@@ -813,6 +815,9 @@ async function startServer() {
   
   // Configurar rutas de autenticación después de inicializar DB
   setupAuthRoutes();
+  
+  // Configurar catch-all route DESPUÉS de todas las otras rutas
+  setupCatchAllRoute();
   
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
