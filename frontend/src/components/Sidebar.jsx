@@ -35,33 +35,49 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
           prompt: m.prompt
         }));
         setModes(formattedModes);
+        
+        // Si es la primera carga y hay modo calendario, seleccionarlo
+        if (!currentMode && formattedModes.find(m => m.id === 'calendar')) {
+          const calendarMode = formattedModes.find(m => m.id === 'calendar');
+          onModeChange(calendarMode);
+        }
       } else {
-        // Si no hay modos en la BD, crear el modo por defecto
-        const defaultMode = {
-          id: 'default',
-          name: 'General',
-          prompt: 'Eres un asistente virtual útil y amigable.'
-        };
-        await createModeInDB(defaultMode);
-        setModes([defaultMode]);
+        // Si no hay modos en la BD, usar los por defecto
+        const defaultModes = [
+          {
+            id: 'default',
+            name: 'General',
+            prompt: 'Eres un asistente virtual útil y amigable.'
+          },
+          {
+            id: 'calendar',
+            name: '📅 Calendario',
+            prompt: 'Eres un asistente especializado en gestión de calendario y reuniones.'
+          }
+        ];
+        setModes(defaultModes);
+        
+        // Intentar crear en BD
+        for (const mode of defaultModes) {
+          await createModeInDB(mode);
+        }
       }
     } catch (error) {
       console.error('Error cargando modos:', error);
-      // Fallback a localStorage si falla la API
-      const savedModes = localStorage.getItem('assistantModes');
-      if (savedModes) {
-        const localModes = JSON.parse(savedModes);
-        setModes(localModes);
-        // Intentar migrar a BD
-        migrateModesToDB(localModes);
-      } else {
-        const defaultMode = {
+      // Fallback con modos por defecto
+      const defaultModes = [
+        {
           id: 'default',
           name: 'General',
           prompt: 'Eres un asistente virtual útil y amigable.'
-        };
-        setModes([defaultMode]);
-      }
+        },
+        {
+          id: 'calendar',
+          name: '📅 Calendario',
+          prompt: 'Eres un asistente especializado en gestión de calendario y reuniones.'
+        }
+      ];
+      setModes(defaultModes);
     } finally {
       setIsLoading(false);
     }

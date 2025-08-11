@@ -231,7 +231,7 @@ function App() {
         conversation_history: messages,
         system_prompt: currentMode?.prompt || 'Eres un asistente virtual útil y amigable.',
         mode_context: contextEnabled,
-        mode_id: currentMode?.id
+        mode_id: currentMode?.id || 'default'
       });
 
       const assistantMessage = {
@@ -510,7 +510,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v2.8</h1>
+            <h1>Asistente IA v2.9</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <button 

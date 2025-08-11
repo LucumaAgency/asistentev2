@@ -58,6 +58,54 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
 });
 
+async function createDefaultModes(connection) {
+  try {
+    // Verificar si ya existen modos por defecto
+    const [existingModes] = await connection.execute(
+      'SELECT mode_id FROM modes WHERE mode_id IN ("default", "calendar")'
+    );
+    
+    if (existingModes.length < 2) {
+      // Crear modo General si no existe
+      await connection.execute(
+        `INSERT IGNORE INTO modes (mode_id, name, prompt, is_active) VALUES (?, ?, ?, ?)`,
+        [
+          'default',
+          'General',
+          'Eres un asistente virtual útil y amigable. Responde en español.',
+          true
+        ]
+      );
+      
+      // Crear modo Calendario si no existe
+      await connection.execute(
+        `INSERT IGNORE INTO modes (mode_id, name, prompt, is_active) VALUES (?, ?, ?, ?)`,
+        [
+          'calendar',
+          '📅 Calendario',
+          `Eres un asistente especializado en gestión de calendario y reuniones. 
+          Puedes agendar reuniones, verificar disponibilidad y gestionar eventos en Google Calendar.
+          
+          Cuando el usuario quiera agendar una reunión:
+          1. Recopila información de forma conversacional: título, fecha, hora, duración, asistentes
+          2. Si falta información crítica, pregunta específicamente por ella
+          3. Usa valores por defecto inteligentes (30 min duración, Google Meet incluido)
+          4. SIEMPRE confirma todos los detalles antes de agendar
+          5. Usa la fecha/hora actual para interpretar referencias como "mañana", "próximo lunes"
+          6. Al confirmar, muestra un resumen claro con emojis
+          
+          Responde siempre en español y sé proactivo sugiriendo mejores horarios si detectas conflictos.`,
+          true
+        ]
+      );
+      
+      console.log('✅ Modos por defecto creados: General y Calendario');
+    }
+  } catch (error) {
+    console.error('Error creando modos por defecto:', error);
+  }
+}
+
 async function initDatabase() {
   try {
     const connection = await mysql.createConnection({
@@ -108,6 +156,9 @@ async function initDatabase() {
     db = connection;
     useDatabase = true;
     console.log('✅ Base de datos conectada y tablas creadas');
+    
+    // Crear modos por defecto si no existen
+    await createDefaultModes(connection);
   } catch (error) {
     console.error('⚠️ Error conectando a la base de datos:', error.message);
     console.log('📝 Usando almacenamiento en memoria como fallback');
@@ -234,6 +285,45 @@ app.get('/api/conversations/:session_id', async (req, res) => {
   }
 });
 
+// Funciones de calendario helpers
+const calendarFunctions = {
+  get_current_datetime: () => {
+    const now = new Date();
+    return {
+      date: now.toISOString().split('T')[0],
+      time: now.toTimeString().split(' ')[0].substring(0, 5),
+      day_name: now.toLocaleDateString('es-ES', { weekday: 'long' }),
+      formatted: now.toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
+  },
+  
+  schedule_meeting: async (params) => {
+    // Por ahora, simulamos el agendamiento
+    // Aquí se integraría con Google Calendar API
+    return {
+      success: true,
+      meeting_id: 'meet_' + Date.now(),
+      meet_link: 'https://meet.google.com/abc-defg-hij',
+      message: `Reunión "${params.title}" agendada para ${params.date} a las ${params.time}`
+    };
+  },
+  
+  check_availability: async (params) => {
+    // Simular verificación de disponibilidad
+    return {
+      available: true,
+      conflicts: []
+    };
+  }
+};
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
@@ -353,14 +443,126 @@ app.post('/api/chat', async (req, res) => {
       { role: 'user', content: message }
     ];
 
-    const completion = await openai.chat.completions.create({
+    // Configurar herramientas si estamos en modo calendario
+    let tools = undefined;
+    if (mode_id === 'calendar') {
+      tools = [
+        {
+          type: 'function',
+          function: {
+            name: 'get_current_datetime',
+            description: 'Obtener la fecha y hora actual',
+            parameters: { type: 'object', properties: {} }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'schedule_meeting',
+            description: 'Agendar una reunión en Google Calendar',
+            parameters: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'Título de la reunión' },
+                date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' },
+                time: { type: 'string', description: 'Hora en formato HH:MM' },
+                duration: { type: 'number', description: 'Duración en minutos' },
+                attendees: { 
+                  type: 'array', 
+                  items: { type: 'string' },
+                  description: 'Lista de emails de los asistentes'
+                },
+                description: { type: 'string', description: 'Descripción de la reunión' },
+                add_meet: { type: 'boolean', description: 'Agregar link de Google Meet' }
+              },
+              required: ['title', 'date', 'time']
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'check_availability',
+            description: 'Verificar disponibilidad en el calendario',
+            parameters: {
+              type: 'object',
+              properties: {
+                date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' },
+                time: { type: 'string', description: 'Hora en formato HH:MM' },
+                duration: { type: 'number', description: 'Duración en minutos' }
+              },
+              required: ['date', 'time']
+            }
+          }
+        }
+      ];
+    }
+
+    const completionParams = {
       model: 'gpt-4o-mini',
       messages: messages,
       temperature: 0.7,
       max_tokens: 1000
-    });
+    };
 
-    const assistantMessage = completion.choices[0].message.content;
+    // Agregar tools si están definidas
+    if (tools) {
+      completionParams.tools = tools;
+      completionParams.tool_choice = 'auto';
+    }
+
+    const completion = await openai.chat.completions.create(completionParams);
+
+    let assistantMessage = completion.choices[0].message.content;
+    
+    // Manejar function calling si el modelo quiere usar herramientas
+    if (completion.choices[0].message.tool_calls) {
+      const toolCalls = completion.choices[0].message.tool_calls;
+      const toolResults = [];
+      
+      for (const toolCall of toolCalls) {
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+        
+        let result;
+        switch (functionName) {
+          case 'get_current_datetime':
+            result = calendarFunctions.get_current_datetime();
+            break;
+          case 'schedule_meeting':
+            result = await calendarFunctions.schedule_meeting(functionArgs);
+            break;
+          case 'check_availability':
+            result = await calendarFunctions.check_availability(functionArgs);
+            break;
+          default:
+            result = { error: 'Función no encontrada' };
+        }
+        
+        toolResults.push({
+          tool_call_id: toolCall.id,
+          role: 'tool',
+          content: JSON.stringify(result)
+        });
+      }
+      
+      // Agregar la respuesta del modelo y los resultados de las herramientas
+      const messagesWithTools = [
+        ...messages,
+        completion.choices[0].message,
+        ...toolResults
+      ];
+      
+      // Hacer una segunda llamada para obtener la respuesta final
+      const finalCompletion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: messagesWithTools,
+        temperature: 0.7,
+        max_tokens: 1000
+      });
+      
+      assistantMessage = finalCompletion.choices[0].message.content;
+    }
 
     if (useDatabase) {
       await db.execute(
