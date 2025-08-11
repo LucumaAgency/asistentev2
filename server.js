@@ -368,6 +368,42 @@ app.get('/api/conversations/:session_id', async (req, res) => {
   }
 });
 
+// Borrar conversación
+app.delete('/api/conversations/:session_id', async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    
+    if (useDatabase) {
+      // Buscar conversación
+      const [conversations] = await db.execute(
+        'SELECT id FROM conversations WHERE session_id = ?',
+        [session_id]
+      );
+      
+      if (conversations.length > 0) {
+        // Borrar mensajes y conversación (cascade delete debería encargarse de los mensajes)
+        await db.execute('DELETE FROM conversations WHERE session_id = ?', [session_id]);
+      }
+    } else {
+      // Borrar de memoria
+      const conversation = inMemoryStore.conversations.get(session_id);
+      if (conversation) {
+        // Borrar mensajes asociados
+        inMemoryStore.messages = inMemoryStore.messages.filter(
+          msg => msg.conversation_id !== conversation.id
+        );
+        // Borrar conversación
+        inMemoryStore.conversations.delete(session_id);
+      }
+    }
+    
+    res.json({ success: true, message: 'Conversación eliminada' });
+  } catch (error) {
+    console.error('Error borrando conversación:', error);
+    res.status(500).json({ error: 'Error al borrar conversación' });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   console.log('📨 POST /api/chat - Iniciando');
   console.log('Body recibido:', { 
