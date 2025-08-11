@@ -251,15 +251,33 @@ const createAuthRoutes = (db) => {
         console.log('   Código recibido:', code.substring(0, 20) + '...');
         
         try {
-          const { tokens } = await client.getToken(code);
-          googleTokens = tokens;
+          console.log('   Redirect URI configurado:', process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html');
+          
+          const tokenResponse = await client.getToken({
+            code: code,
+            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
+          });
+          
+          googleTokens = tokenResponse.tokens;
           console.log('✅ Tokens obtenidos de Google:');
           console.log('   - access_token:', googleTokens.access_token ? '✓' : '✗');
           console.log('   - refresh_token:', googleTokens.refresh_token ? '✓' : '✗');
           console.log('   - id_token:', googleTokens.id_token ? '✓' : '✗');
           console.log('   - scope:', googleTokens.scope);
+          
+          logger.writeLog('✅ Tokens OAuth obtenidos', {
+            hasAccessToken: !!googleTokens.access_token,
+            hasRefreshToken: !!googleTokens.refresh_token,
+            hasIdToken: !!googleTokens.id_token,
+            scope: googleTokens.scope
+          });
         } catch (tokenError) {
           console.error('❌ Error obteniendo tokens:', tokenError.message);
+          console.error('   Detalles:', tokenError.response?.data || tokenError);
+          logger.writeLog('❌ Error intercambiando código por tokens', {
+            error: tokenError.message,
+            details: tokenError.response?.data
+          });
           throw tokenError;
         }
         

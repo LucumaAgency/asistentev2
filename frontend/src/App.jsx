@@ -509,7 +509,9 @@ function App() {
           // Procesar el código
           (async () => {
             try {
+              console.log('📅 Procesando código OAuth desde popup...');
               const response = await axios.post('/api/auth/google', { code: event.data.code });
+              console.log('Respuesta del servidor:', response.data);
               
               if (response.data.success) {
                 // Actualizar tokens
@@ -518,13 +520,24 @@ function App() {
                   axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
                 }
                 
-                setHasCalendarAccess(true);
+                // Actualizar usuario si viene en la respuesta
+                if (response.data.user) {
+                  localStorage.setItem('user', JSON.stringify(response.data.user));
+                  setUser(response.data.user);
+                }
+                
+                setHasCalendarAccess(response.data.hasCalendarAccess || false);
                 console.log('✅ Calendar autorizado exitosamente');
                 alert('✅ Google Calendar autorizado exitosamente. Ya puedes agendar reuniones.');
+              } else {
+                console.error('Error en respuesta:', response.data);
+                alert('Error al autorizar Calendar: ' + (response.data.error || 'Error desconocido'));
               }
             } catch (error) {
               console.error('Error procesando código OAuth:', error);
-              alert('Error al autorizar Calendar. Por favor intenta de nuevo.');
+              console.error('Detalles del error:', error.response?.data);
+              const errorMsg = error.response?.data?.details || error.response?.data?.error || error.message;
+              alert('Error al autorizar Calendar: ' + errorMsg);
             }
           })();
           
