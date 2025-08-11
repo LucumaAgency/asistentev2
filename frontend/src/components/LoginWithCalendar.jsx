@@ -71,7 +71,7 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Asistente IA v3.2</h1>
+          <h1>Asistente IA v3.3</h1>
           <p>Inicia sesión para guardar tus conversaciones y acceder a todas las funciones</p>
         </div>
 
