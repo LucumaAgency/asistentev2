@@ -1249,12 +1249,10 @@ app.use('/api/auth/*', (req, res, next) => {
   next();
 });
 
-// NO configurar auth routes aquí - esperar a que la BD esté lista
-console.log('⏳ Auth routes pendientes - esperando conexión a BD...');
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
-});
+// Configurar auth routes temporalmente sin BD para que funcionen inmediatamente
+const tempAuthRoutes = createAuthRoutes(null);
+app.use('/api/auth', tempAuthRoutes);
+console.log('⏳ Auth routes temporales configuradas (sin BD)');
 
 async function startServer() {
   try {
@@ -1269,22 +1267,33 @@ async function startServer() {
     
     await initDatabase();
     
-    // SIEMPRE configurar auth routes después de inicializar BD
-    const authRoutes = createAuthRoutes(db);
-    app.use('/api/auth', authRoutes);
-    
+    // Reconfigurar auth routes con BD si está disponible
     if (useDatabase && db) {
-      console.log('✅ Rutas de autenticación configuradas CON base de datos');
+      // Remover rutas auth temporales
+      app._router.stack = app._router.stack.filter(layer => {
+        return !layer.regexp || !layer.regexp.toString().includes('/api/auth');
+      });
+      
+      // Configurar nuevas rutas con BD
+      const authRoutes = createAuthRoutes(db);
+      app.use('/api/auth', authRoutes);
+      
+      console.log('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
       try {
         const logger = new Logger();
-        logger.writeLog('✅ AUTH ROUTES CONFIGURADAS CON BD AL INICIO', {
+        logger.writeLog('✅ AUTH ROUTES RECONFIGURADAS CON BD', {
           timestamp: new Date().toISOString(),
           dbConnected: true
         });
       } catch (e) {}
     } else {
-      console.log('⚠️ Rutas de autenticación configuradas SIN base de datos');
+      console.log('⚠️ Manteniendo rutas de autenticación SIN base de datos');
     }
+    
+    // Catch-all route DEBE ir al final, después de todas las rutas API
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
+    });
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
