@@ -440,35 +440,46 @@ app.post('/api/chat', async (req, res) => {
   try {
     const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
     
-    // Obtener tokens del usuario si está autenticado
+    // Obtener tokens del usuario para Calendar si está en modo calendar
     let userTokens = null;
-    const authHeader = req.headers['authorization'];
-    if (authHeader && useDatabase) {
-      const token = authHeader.split(' ')[1];
-      
-      try {
-        // Decodificar el JWT para obtener el user_id
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
+    if (mode_id === 'calendar') {
+      console.log('🗓️ Modo Calendar detectado, buscando tokens OAuth...');
+      const authHeader = req.headers['authorization'];
+      if (authHeader && useDatabase) {
+        const token = authHeader.split(' ')[1];
         
-        if (decoded.id) {
-          // Obtener tokens de Google del usuario
-          const [tokens] = await db.execute(
-            'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
-            [decoded.id]
-          );
+        try {
+          // Decodificar el JWT para obtener el user_id
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
+          console.log('👤 Usuario autenticado:', decoded.email);
           
-          if (tokens.length > 0) {
-            userTokens = {
-              access_token: tokens[0].access_token,
-              refresh_token: tokens[0].refresh_token,
-              token_type: tokens[0].token_type,
-              expiry_date: tokens[0].expires_at ? new Date(tokens[0].expires_at).getTime() : null
-            };
-            console.log('✅ Tokens de Calendar obtenidos para el usuario');
+          if (decoded.id) {
+            // Obtener tokens de Google del usuario
+            const [tokens] = await db.execute(
+              'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
+              [decoded.id]
+            );
+            
+            if (tokens.length > 0) {
+              userTokens = {
+                access_token: tokens[0].access_token,
+                refresh_token: tokens[0].refresh_token,
+                token_type: tokens[0].token_type,
+                expiry_date: tokens[0].expires_at ? new Date(tokens[0].expires_at).getTime() : null
+              };
+              console.log('✅ Tokens de Calendar obtenidos de la BD');
+              console.log('   Access token:', userTokens.access_token ? 'Presente' : 'Faltante');
+            } else {
+              console.log('⚠️ No hay tokens de Calendar guardados para este usuario');
+            }
           }
+        } catch (error) {
+          console.log('❌ Error obteniendo tokens de Calendar:', error.message);
         }
-      } catch (error) {
-        console.log('No se pudieron obtener tokens de Calendar:', error.message);
+      } else if (!useDatabase) {
+        console.log('⚠️ No hay BD conectada - Calendar funcionará en modo simulación');
+      } else if (!authHeader) {
+        console.log('⚠️ No hay header de autorización');
       }
     }
 
