@@ -13,16 +13,6 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    // Verificar si hay código en la URL (callback de OAuth)
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
-    if (code) {
-      handleOAuthCallback(code);
-    }
-  }, []);
-
   const handleOAuthCallback = async (code) => {
     setIsLoading(true);
     setError('');
@@ -48,6 +38,16 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Verificar si hay código en la URL (callback de OAuth)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      handleOAuthCallback(code);
+    }
+  }, []);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
