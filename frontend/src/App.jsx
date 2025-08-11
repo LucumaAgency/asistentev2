@@ -603,6 +603,7 @@ function App() {
           >
             + Nuevo Chat
           </button>
+          {/* Botón de Calendar oculto temporalmente - el login ya pide permisos de Calendar
           {currentMode?.id === 'calendar' && isAuthenticated && (
             <button 
               className={`calendar-auth-button ${hasCalendarAccess ? 'authorized' : ''}`}
@@ -611,7 +612,7 @@ function App() {
             >
               📅 {hasCalendarAccess ? '✓' : 'Autorizar'}
             </button>
-          )}
+          )} */}
           <div className="user-menu">
             {user ? (
               <div className="user-info">

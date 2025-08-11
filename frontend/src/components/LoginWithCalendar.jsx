@@ -54,8 +54,8 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
     setError('');
     
     try {
-      console.log('Solicitando URL de autorización...');
-      // Obtener URL de autorización con scopes de Calendar
+      console.log('Solicitando URL de autorización con Calendar...');
+      // SIEMPRE obtener URL de autorización con scopes de Calendar
       const response = await axios.get('/api/auth/google/auth-url');
       console.log('Respuesta del servidor:', response.data);
       
@@ -65,8 +65,8 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
         throw new Error('No se recibió URL de autorización del servidor');
       }
       
-      console.log('Redirigiendo a Google OAuth...');
-      // Redirigir a Google OAuth
+      console.log('Redirigiendo a Google OAuth con permisos de Calendar...');
+      // Redirigir a Google OAuth - esto pedirá permisos de Calendar desde el inicio
       window.location.href = authUrl;
     } catch (err) {
       console.error('Error completo:', err);
