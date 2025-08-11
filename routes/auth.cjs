@@ -223,12 +223,14 @@ const createAuthRoutes = (db) => {
   router.post('/google', async (req, res) => {
     try {
       console.log('📍 Recibiendo login con Google');
+      console.log('   Tipo de auth:', req.body.code ? 'OAuth Code Flow' : req.body.credential ? 'ID Token' : 'Desconocido');
       const { credential, code } = req.body;
 
       let googleData, googleTokens;
 
       // Si viene un código de autorización (OAuth Code Flow)
       if (code) {
+        console.log('🔐 Procesando OAuth Code Flow - TENDREMOS TOKENS DE CALENDAR');
         console.log('🔐 Procesando código de autorización OAuth');
         const { tokens } = await client.getToken(code);
         googleTokens = tokens;
@@ -267,7 +269,13 @@ const createAuthRoutes = (db) => {
       const refreshToken = generateRefreshToken(user);
 
       // Guardar tokens de Google si existen (para Calendar)
+      console.log('🔍 Intentando guardar tokens:');
+      console.log('   DB disponible:', !!db);
+      console.log('   User ID:', user.id);
+      console.log('   Tokens disponibles:', !!googleTokens);
+      
       if (db && user.id && googleTokens) {
+        console.log('💾 Guardando tokens en BD...');
         await db.execute(
           `INSERT INTO user_tokens (user_id, access_token, refresh_token, token_type, scope, expires_at) 
            VALUES (?, ?, ?, ?, ?, ?) 
@@ -284,7 +292,12 @@ const createAuthRoutes = (db) => {
             googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
           ]
         );
-        console.log('✅ Tokens de Google Calendar guardados');
+        console.log('✅ Tokens de Google Calendar guardados exitosamente');
+      } else {
+        console.log('⚠️ NO se guardaron tokens porque:');
+        if (!db) console.log('   - No hay conexión a BD');
+        if (!user.id) console.log('   - No hay user.id');
+        if (!googleTokens) console.log('   - No hay tokens de Google (probablemente login con ID Token)');
       }
 
       if (db && user.id) {
