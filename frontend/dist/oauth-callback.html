@@ -86,23 +86,38 @@
           const data = await response.json();
           console.log('Respuesta del servidor:', data);
           
-          if (data.success && data.hasCalendarAccess) {
-            // Actualizar token si es necesario
+          if (data.success) {
+            // Actualizar tokens y usuario en localStorage
             if (data.token) {
               localStorage.setItem('authToken', data.token);
             }
+            if (data.refreshToken) {
+              localStorage.setItem('refreshToken', data.refreshToken);
+            }
+            if (data.user) {
+              localStorage.setItem('user', JSON.stringify(data.user));
+            }
+            
+            // Configurar axios para futuras peticiones (aunque esto se perderá al redirigir)
+            if (data.token && window.axios) {
+              window.axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+            }
             
             document.querySelector('h1').textContent = '✅ Calendar autorizado exitosamente';
-            document.querySelector('p').textContent = 'Ya puedes agendar reuniones. Esta ventana se cerrará...';
+            document.querySelector('p').textContent = 'Ya puedes agendar reuniones. Redirigiendo...';
             document.querySelector('.spinner').style.display = 'none';
+            
+            return true; // Indicar éxito
           }
+          return false; // Indicar fallo
         } catch (error) {
           console.error('Error procesando código:', error);
+          return false;
         }
       }
       
       // Procesar el código directamente
-      processCode().then(() => {
+      processCode().then((success) => {
         // Si es un popup, intentar comunicar con la ventana principal
         if (window.opener) {
           try {
