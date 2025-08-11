@@ -8,6 +8,12 @@ dotenv.config();
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion';
 
+// Log inicial de configuración
+console.log('🔧 Configuración OAuth al iniciar:');
+console.log('   GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Definido' : '❌ No definido');
+console.log('   GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Definido' : '❌ No definido');
+console.log('   GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'Usando default');
+
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -178,18 +184,34 @@ const createAuthRoutes = (db) => {
       console.log('   CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ No configurado');
       console.log('   REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html');
       
-      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        throw new Error('Google OAuth no está configurado correctamente');
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new Error('GOOGLE_CLIENT_ID no está configurado');
       }
       
-      const authUrl = client.generateAuthUrl({
-        access_type: 'offline',
-        scope: SCOPES,
-        prompt: 'consent',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
-      });
+      // Generar URL manualmente si hay problemas con el client
+      let authUrl;
+      try {
+        authUrl = client.generateAuthUrl({
+          access_type: 'offline',
+          scope: SCOPES,
+          prompt: 'consent',
+          redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
+        });
+      } catch (clientError) {
+        console.log('⚠️ Error con OAuth2Client, generando URL manualmente');
+        // Generar URL manualmente como fallback
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html';
+        const scopeString = SCOPES.join(' ');
+        authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+          `client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID)}&` +
+          `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+          `response_type=code&` +
+          `scope=${encodeURIComponent(scopeString)}&` +
+          `access_type=offline&` +
+          `prompt=consent`;
+      }
       
-      console.log('✅ URL generada exitosamente');
+      console.log('✅ URL generada:', authUrl ? 'OK' : 'ERROR');
       res.json({ authUrl });
     } catch (error) {
       console.error('❌ Error generando URL de autorización:', error.message);
