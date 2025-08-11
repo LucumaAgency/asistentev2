@@ -69,25 +69,65 @@
         window.close();
       }, 3000);
     } else if (code) {
-      // Enviar el código a la ventana principal
+      console.log('OAuth callback recibido con código:', code);
+      
+      // Intentar enviar el código al servidor directamente también
+      async function processCode() {
+        try {
+          const response = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': localStorage.getItem('authToken') ? `Bearer ${localStorage.getItem('authToken')}` : ''
+            },
+            body: JSON.stringify({ code: code })
+          });
+          
+          const data = await response.json();
+          console.log('Respuesta del servidor:', data);
+          
+          if (data.success && data.hasCalendarAccess) {
+            // Actualizar token si es necesario
+            if (data.token) {
+              localStorage.setItem('authToken', data.token);
+            }
+            
+            document.querySelector('h1').textContent = '✅ Calendar autorizado exitosamente';
+            document.querySelector('p').textContent = 'Ya puedes agendar reuniones. Esta ventana se cerrará...';
+            document.querySelector('.spinner').style.display = 'none';
+          }
+        } catch (error) {
+          console.error('Error procesando código:', error);
+        }
+      }
+      
+      // Procesar el código directamente
+      processCode();
+      
+      // También intentar enviar a la ventana principal si existe
       if (window.opener) {
-        window.opener.postMessage({
-          type: 'google-auth-success',
-          code: code
-        }, '*');
+        try {
+          window.opener.postMessage({
+            type: 'google-auth-success',
+            code: code
+          }, '*');
+          console.log('Mensaje enviado a ventana principal');
+        } catch (e) {
+          console.error('Error enviando mensaje:', e);
+        }
         
         // Mostrar mensaje de éxito
-        document.querySelector('h1').textContent = '✅ Autorización exitosa';
-        document.querySelector('p').textContent = 'Esta ventana se cerrará automáticamente...';
-        document.querySelector('.spinner').style.display = 'none';
+        document.querySelector('h1').textContent = '✅ Procesando autorización...';
+        document.querySelector('p').textContent = 'Por favor espera...';
         
         setTimeout(() => {
           window.close();
-        }, 2000);
+        }, 3000);
       } else {
-        document.getElementById('error').textContent = 'Error: No se puede comunicar con la ventana principal';
-        document.getElementById('error').style.display = 'block';
-        document.querySelector('.spinner').style.display = 'none';
+        console.log('No hay window.opener, procesando solo en servidor');
+        setTimeout(() => {
+          window.close();
+        }, 3000);
       }
     } else {
       document.getElementById('error').textContent = 'Error: No se recibió código de autorización';
