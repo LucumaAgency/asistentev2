@@ -276,9 +276,19 @@ const createAuthRoutes = (db) => {
           console.error('   Detalles:', tokenError.response?.data || tokenError);
           logger.writeLog('❌ Error intercambiando código por tokens', {
             error: tokenError.message,
-            details: tokenError.response?.data
+            details: tokenError.response?.data,
+            code: tokenError.code,
+            statusCode: tokenError.response?.status
           });
-          throw tokenError;
+          
+          // Proporcionar mensaje de error más específico
+          if (tokenError.message.includes('invalid_grant')) {
+            throw new Error('El código de autorización expiró o ya fue usado. Por favor intenta de nuevo.');
+          } else if (tokenError.message.includes('redirect_uri_mismatch')) {
+            throw new Error('Error de configuración: El redirect URI no coincide con el configurado en Google.');
+          } else {
+            throw tokenError;
+          }
         }
         
         // Verificar y decodificar el ID token

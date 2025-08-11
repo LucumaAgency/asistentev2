@@ -69,85 +69,26 @@
         window.close();
       }, 3000);
     } else if (code) {
-      console.log('OAuth callback recibido con código:', code);
-      
-      // Intentar enviar el código al servidor directamente también
-      async function processCode() {
-        try {
-          const response = await fetch('/api/auth/google', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': localStorage.getItem('authToken') ? `Bearer ${localStorage.getItem('authToken')}` : ''
-            },
-            body: JSON.stringify({ code: code })
-          });
-          
-          const data = await response.json();
-          console.log('Respuesta del servidor:', data);
-          
-          if (data.success) {
-            // Actualizar tokens y usuario en localStorage
-            if (data.token) {
-              localStorage.setItem('authToken', data.token);
-            }
-            if (data.refreshToken) {
-              localStorage.setItem('refreshToken', data.refreshToken);
-            }
-            if (data.user) {
-              localStorage.setItem('user', JSON.stringify(data.user));
-            }
-            
-            // Configurar axios para futuras peticiones (aunque esto se perderá al redirigir)
-            if (data.token && window.axios) {
-              window.axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-            }
-            
-            document.querySelector('h1').textContent = '✅ Calendar autorizado exitosamente';
-            document.querySelector('p').textContent = 'Ya puedes agendar reuniones. Redirigiendo...';
-            document.querySelector('.spinner').style.display = 'none';
-            
-            return true; // Indicar éxito
-          }
-          return false; // Indicar fallo
-        } catch (error) {
-          console.error('Error procesando código:', error);
-          return false;
-        }
+      // Enviar el código a la ventana principal
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'google-auth-success',
+          code: code
+        }, '*');
+        
+        // Mostrar mensaje de éxito
+        document.querySelector('h1').textContent = '✅ Autorización exitosa';
+        document.querySelector('p').textContent = 'Esta ventana se cerrará automáticamente...';
+        document.querySelector('.spinner').style.display = 'none';
+        
+        setTimeout(() => {
+          window.close();
+        }, 2000);
+      } else {
+        document.getElementById('error').textContent = 'Error: No se puede comunicar con la ventana principal';
+        document.getElementById('error').style.display = 'block';
+        document.querySelector('.spinner').style.display = 'none';
       }
-      
-      // Procesar el código directamente
-      processCode().then((success) => {
-        // Si es un popup, intentar comunicar con la ventana principal
-        if (window.opener) {
-          try {
-            window.opener.postMessage({
-              type: 'google-auth-success',
-              code: code
-            }, '*');
-            console.log('Mensaje enviado a ventana principal');
-            
-            // Cerrar popup después de enviar mensaje
-            setTimeout(() => {
-              window.close();
-            }, 2000);
-          } catch (e) {
-            console.error('Error enviando mensaje:', e);
-            // Si falla, redirigir
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 2000);
-          }
-        } else {
-          // No es un popup, es redirect directo - volver a la app
-          console.log('No hay window.opener, redirigiendo a la app principal...');
-          
-          // Esperar un poco para que el usuario vea el mensaje de éxito
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
-        }
-      });
     } else {
       document.getElementById('error').textContent = 'Error: No se recibió código de autorización';
       document.getElementById('error').style.display = 'block';
