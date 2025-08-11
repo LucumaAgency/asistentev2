@@ -54,15 +54,26 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
     setError('');
     
     try {
+      console.log('Solicitando URL de autorización...');
       // Obtener URL de autorización con scopes de Calendar
       const response = await axios.get('/api/auth/google/auth-url');
+      console.log('Respuesta del servidor:', response.data);
+      
       const { authUrl } = response.data;
       
+      if (!authUrl) {
+        throw new Error('No se recibió URL de autorización del servidor');
+      }
+      
+      console.log('Redirigiendo a Google OAuth...');
       // Redirigir a Google OAuth
       window.location.href = authUrl;
     } catch (err) {
-      console.error('Error obteniendo URL de autorización:', err);
-      setError('Error al iniciar el proceso de autenticación');
+      console.error('Error completo:', err);
+      console.error('Respuesta del error:', err.response);
+      
+      const errorMessage = err.response?.data?.error || err.message || 'Error al iniciar el proceso de autenticación';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

@@ -173,16 +173,27 @@ const createAuthRoutes = (db) => {
   // Obtener URL de autorización con scopes de Calendar
   router.get('/google/auth-url', (req, res) => {
     try {
+      console.log('📍 Generando URL de autorización OAuth');
+      console.log('   CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ No configurado');
+      console.log('   CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ No configurado');
+      console.log('   REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html');
+      
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        throw new Error('Google OAuth no está configurado correctamente');
+      }
+      
       const authUrl = client.generateAuthUrl({
         access_type: 'offline',
         scope: SCOPES,
         prompt: 'consent',
         redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
       });
+      
+      console.log('✅ URL generada exitosamente');
       res.json({ authUrl });
     } catch (error) {
-      console.error('Error generando URL de autorización:', error);
-      res.status(500).json({ error: 'Error generando URL de autorización' });
+      console.error('❌ Error generando URL de autorización:', error.message);
+      res.status(500).json({ error: 'Error generando URL de autorización: ' + error.message });
     }
   });
 
