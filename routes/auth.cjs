@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/api/auth/google/callback'
+  process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
 );
 
 // Scopes requeridos para Calendar
@@ -354,14 +354,27 @@ const createAuthRoutes = (db) => {
           return res.status(401).json({ error: 'Token inválido' });
         }
 
+        let hasCalendarAccess = false;
+
         if (db && decoded.id) {
           const [users] = await db.execute(
             'SELECT id, email, name, picture, locale, created_at FROM users WHERE id = ?',
             [decoded.id]
           );
+          
+          // Verificar si tiene tokens de Calendar
+          const [tokens] = await db.execute(
+            'SELECT id FROM user_tokens WHERE user_id = ?',
+            [decoded.id]
+          );
+          
+          hasCalendarAccess = tokens.length > 0;
 
           if (users.length > 0) {
-            return res.json({ user: users[0] });
+            return res.json({ 
+              user: users[0],
+              hasCalendarAccess
+            });
           }
         }
 
@@ -371,7 +384,8 @@ const createAuthRoutes = (db) => {
             email: decoded.email,
             name: decoded.name,
             picture: decoded.picture
-          }
+          },
+          hasCalendarAccess
         });
       });
     } catch (error) {

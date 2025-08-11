@@ -23,6 +23,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [hasCalendarAccess, setHasCalendarAccess] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -405,6 +406,11 @@ function App() {
       if (response.data.user) {
         setUser(response.data.user);
         setIsAuthenticated(true);
+        
+        // Verificar si tiene acceso a Calendar
+        if (response.data.hasCalendarAccess) {
+          setHasCalendarAccess(true);
+        }
       }
     } catch (error) {
       console.error('Token inválido:', error);
@@ -477,6 +483,69 @@ function App() {
     console.log('Nuevo chat creado con session_id:', newSessionId);
   };
 
+  const authorizeCalendar = async () => {
+    try {
+      // Obtener URL de autorización
+      const response = await axios.get('/api/auth/google/auth-url');
+      const { authUrl } = response.data;
+      
+      // Abrir popup para autorización
+      const width = 500;
+      const height = 600;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      
+      const popup = window.open(
+        authUrl,
+        'Google Calendar Authorization',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+      
+      // Escuchar mensajes del popup
+      const handleMessage = async (event) => {
+        if (event.data.type === 'google-auth-success' && event.data.code) {
+          // Enviar código al backend
+          try {
+            const tokenResponse = await axios.post('/api/auth/google', {
+              code: event.data.code
+            });
+            
+            if (tokenResponse.data.hasCalendarAccess) {
+              setHasCalendarAccess(true);
+              alert('✅ Calendario autorizado exitosamente');
+            }
+            
+            // Actualizar tokens si es necesario
+            if (tokenResponse.data.token) {
+              localStorage.setItem('authToken', tokenResponse.data.token);
+              axios.defaults.headers.common['Authorization'] = `Bearer ${tokenResponse.data.token}`;
+            }
+          } catch (error) {
+            console.error('Error procesando autorización:', error);
+            alert('Error al autorizar calendario');
+          }
+          
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
+      
+      // Limpiar listener si el popup se cierra manualmente
+      const checkPopup = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkPopup);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error obteniendo URL de autorización:', error);
+      alert('Error al iniciar autorización');
+    }
+  };
+
   // Mostrar login si es necesario
   if (showLogin) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -510,7 +579,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v3.1</h1>
+            <h1>Asistente IA v3.2</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <button 
@@ -520,6 +589,15 @@ function App() {
           >
             + Nuevo Chat
           </button>
+          {currentMode?.id === 'calendar' && isAuthenticated && (
+            <button 
+              className={`calendar-auth-button ${hasCalendarAccess ? 'authorized' : ''}`}
+              onClick={authorizeCalendar}
+              title={hasCalendarAccess ? 'Calendario autorizado' : 'Autorizar acceso a Calendar'}
+            >
+              📅 {hasCalendarAccess ? '✓' : 'Autorizar'}
+            </button>
+          )}
           <div className="user-menu">
             {user ? (
               <div className="user-info">

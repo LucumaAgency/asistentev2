@@ -6,7 +6,7 @@ class GoogleCalendarService {
     this.oauth2Client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/api/auth/google/callback'
+      process.env.GOOGLE_REDIRECT_URI || 'https://asistentev2.pruebalucuma.site/oauth-callback.html'
     );
     
     this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
