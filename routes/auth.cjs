@@ -221,9 +221,25 @@ const createAuthRoutes = (db) => {
 
   // Login con Google (soporta tanto ID Token como Code Flow)
   router.post('/google', async (req, res) => {
+    // Crear logger si está disponible
+    let logger;
+    try {
+      const Logger = require('../utils/logger.cjs');
+      logger = new Logger();
+    } catch (e) {
+      // Si no hay logger, usar console
+      logger = { writeLog: console.log };
+    }
+    
     try {
       console.log('📍 Recibiendo login con Google');
       console.log('   Tipo de auth:', req.body.code ? 'OAuth Code Flow' : req.body.credential ? 'ID Token' : 'Desconocido');
+      logger.writeLog('🔐 POST /api/auth/google recibido', {
+        hasCode: !!req.body.code,
+        hasCredential: !!req.body.credential,
+        headers: req.headers
+      });
+      
       const { credential, code } = req.body;
 
       let googleData, googleTokens;
@@ -288,11 +304,28 @@ const createAuthRoutes = (db) => {
       console.log('   User Email:', user.email);
       console.log('   Tokens disponibles:', !!googleTokens);
       
+      logger.writeLog('🔍 Verificando guardado de tokens OAuth', {
+        dbAvailable: !!db,
+        userId: user.id,
+        userGoogleId: user.google_id || googleData.googleId,
+        userEmail: user.email,
+        hasTokens: !!googleTokens,
+        tokenScopes: googleTokens?.scope
+      });
+      
       if (db && user.id && googleTokens) {
         console.log('💾 Guardando tokens en BD...');
         console.log('   User ID a guardar:', user.id);
         console.log('   Access token length:', googleTokens.access_token?.length);
         console.log('   Refresh token length:', googleTokens.refresh_token?.length);
+        
+        logger.writeLog('💾 Intentando guardar tokens en BD', {
+          userId: user.id,
+          hasAccessToken: !!googleTokens.access_token,
+          hasRefreshToken: !!googleTokens.refresh_token,
+          tokenType: googleTokens.token_type,
+          expiryDate: googleTokens.expiry_date
+        });
         
         const result = await db.execute(
           `INSERT INTO user_tokens (user_id, access_token, refresh_token, token_type, scope, expires_at) 
@@ -312,6 +345,12 @@ const createAuthRoutes = (db) => {
         );
         console.log('✅ Tokens de Google Calendar guardados exitosamente');
         console.log('   Resultado:', result[0].affectedRows, 'filas afectadas');
+        
+        logger.writeLog('✅ Tokens guardados en BD exitosamente', {
+          affectedRows: result[0].affectedRows,
+          insertId: result[0].insertId,
+          warningCount: result[0].warningCount
+        });
       } else {
         console.log('⚠️ NO se guardaron tokens porque:');
         if (!db) console.log('   - No hay conexión a BD');
