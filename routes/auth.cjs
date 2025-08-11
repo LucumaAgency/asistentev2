@@ -362,8 +362,8 @@ const createAuthRoutes = (db) => {
         });
         
         const result = await db.execute(
-          `INSERT INTO user_tokens (user_id, access_token, refresh_token, token_type, scope, expires_at) 
-           VALUES (?, ?, ?, ?, ?, ?) 
+          `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
+           VALUES (?, 'google_calendar', ?, ?, ?) 
            ON DUPLICATE KEY UPDATE 
            access_token = VALUES(access_token), 
            refresh_token = VALUES(refresh_token),
@@ -372,8 +372,6 @@ const createAuthRoutes = (db) => {
             user.id,
             googleTokens.access_token,
             googleTokens.refresh_token,
-            googleTokens.token_type || 'Bearer',
-            googleTokens.scope || SCOPES.join(' '),
             googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
           ]
         );
