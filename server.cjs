@@ -500,10 +500,19 @@ app.post('/api/chat', async (req, res) => {
             }
             
             // Obtener tokens de Google del usuario usando el ID real
+            logger.writeLog('🔎 Buscando tokens en BD para user_id:', realUserId);
+            
             const [tokens] = await db.execute(
               'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
               [realUserId]
             );
+            
+            logger.writeLog('📊 Resultado de búsqueda de tokens:', {
+              userId: realUserId,
+              tokensFound: tokens.length,
+              hasAccessToken: tokens.length > 0 && !!tokens[0].access_token,
+              hasRefreshToken: tokens.length > 0 && !!tokens[0].refresh_token
+            });
             
             if (tokens.length > 0) {
               userTokens = {

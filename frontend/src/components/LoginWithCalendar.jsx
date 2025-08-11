@@ -17,14 +17,25 @@ const LoginWithCalendar = ({ onLoginSuccess }) => {
     setIsLoading(true);
     setError('');
     
+    console.log('LoginWithCalendar - Procesando código OAuth:', code.substring(0, 20) + '...');
+    
     try {
       const response = await axios.post('/api/auth/google', { code });
+      
+      console.log('LoginWithCalendar - Respuesta del servidor:', response.data);
       
       if (response.data.success) {
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('refreshToken', response.data.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        
+        console.log('LoginWithCalendar - Datos guardados:', {
+          hasToken: !!response.data.token,
+          hasRefreshToken: !!response.data.refreshToken,
+          user: response.data.user,
+          hasCalendarAccess: response.data.hasCalendarAccess
+        });
         
         // Limpiar URL
         window.history.replaceState({}, document.title, window.location.pathname);
