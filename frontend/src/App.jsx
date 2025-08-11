@@ -31,6 +31,46 @@ function App() {
   const silenceTimerRef = useRef(null);
 
   useEffect(() => {
+    // Verificar si hay código OAuth en la URL (callback de autorización de Calendar)
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthCode = urlParams.get('code');
+    
+    if (oauthCode && localStorage.getItem('calendar_auth_pending')) {
+      console.log('📅 Procesando autorización de Calendar...');
+      
+      // Limpiar flag
+      localStorage.removeItem('calendar_auth_pending');
+      
+      // Procesar el código OAuth
+      (async () => {
+        try {
+          const response = await axios.post('/api/auth/google', { code: oauthCode });
+          
+          if (response.data.success) {
+            // Actualizar tokens
+            if (response.data.token) {
+              localStorage.setItem('authToken', response.data.token);
+              axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+            }
+            
+            setHasCalendarAccess(true);
+            console.log('✅ Calendar autorizado exitosamente');
+            
+            // Limpiar URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Mostrar mensaje de éxito
+            setTimeout(() => {
+              alert('✅ Google Calendar autorizado exitosamente. Ya puedes agendar reuniones.');
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Error procesando código OAuth:', error);
+          alert('Error al autorizar Calendar. Por favor intenta de nuevo.');
+        }
+      })();
+    }
+    
     // Verificar soporte de síntesis de voz
     if ('speechSynthesis' in window) {
       console.log('Síntesis de voz soportada');
@@ -495,50 +535,16 @@ function App() {
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
       
-      const popup = window.open(
-        authUrl,
-        'Google Calendar Authorization',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
+      // CAMBIO: Usar redirect directo en lugar de popup para asegurar que se guarden los tokens
+      console.log('Redirigiendo a Google OAuth para autorizar Calendar...');
       
-      // Escuchar mensajes del popup
-      const handleMessage = async (event) => {
-        if (event.data.type === 'google-auth-success' && event.data.code) {
-          // Enviar código al backend
-          try {
-            const tokenResponse = await axios.post('/api/auth/google', {
-              code: event.data.code
-            });
-            
-            if (tokenResponse.data.hasCalendarAccess) {
-              setHasCalendarAccess(true);
-              alert('✅ Calendario autorizado exitosamente');
-            }
-            
-            // Actualizar tokens si es necesario
-            if (tokenResponse.data.token) {
-              localStorage.setItem('authToken', tokenResponse.data.token);
-              axios.defaults.headers.common['Authorization'] = `Bearer ${tokenResponse.data.token}`;
-            }
-          } catch (error) {
-            console.error('Error procesando autorización:', error);
-            alert('Error al autorizar calendario');
-          }
-          
-          popup.close();
-          window.removeEventListener('message', handleMessage);
-        }
-      };
+      // Guardar estado para recuperarlo después
+      localStorage.setItem('calendar_auth_pending', 'true');
       
-      window.addEventListener('message', handleMessage);
-      
-      // Limpiar listener si el popup se cierra manualmente
-      const checkPopup = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopup);
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 1000);
+      // Redirigir directamente
+      window.location.href = authUrl;
+      return; // El resto del código no se ejecutará
+      // Código antiguo de popup comentado - ya no se ejecutará debido al return
       
     } catch (error) {
       console.error('Error obteniendo URL de autorización:', error);

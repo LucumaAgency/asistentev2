@@ -69,7 +69,7 @@
         window.close();
       }, 3000);
     } else if (code) {
-      // Si hay un opener (popup), enviar mensaje
+      // Enviar el código a la ventana principal
       if (window.opener) {
         window.opener.postMessage({
           type: 'google-auth-success',
@@ -85,14 +85,9 @@
           window.close();
         }, 2000);
       } else {
-        // Si no hay opener, redirigir a la app principal con el código
-        document.querySelector('h1').textContent = '✅ Autorización exitosa';
-        document.querySelector('p').textContent = 'Redirigiendo a la aplicación...';
+        document.getElementById('error').textContent = 'Error: No se puede comunicar con la ventana principal';
+        document.getElementById('error').style.display = 'block';
         document.querySelector('.spinner').style.display = 'none';
-        
-        setTimeout(() => {
-          window.location.href = '/?code=' + encodeURIComponent(code);
-        }, 1000);
       }
     } else {
       document.getElementById('error').textContent = 'Error: No se recibió código de autorización';
