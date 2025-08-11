@@ -1232,13 +1232,21 @@ app.get('/api/auth/config-check', (req, res) => {
 
 // Esta función se llamará después de inicializar la BD
 const setupAuthRoutes = () => {
+  // Remover rutas anteriores si existen
+  app._router.stack = app._router.stack.filter(layer => {
+    return !layer.route || !layer.route.path || !layer.route.path.startsWith('/api/auth');
+  });
+  
+  // Configurar nuevas rutas con BD
   const authRoutes = createAuthRoutes(db);
   app.use('/api/auth', authRoutes);
+  console.log('✅ Auth routes reconfigured with database connection');
 };
 
-// IMPORTANTE: Configurar auth routes inmediatamente (funcionarán sin BD)
+// IMPORTANTE: Configurar auth routes inmediatamente (funcionarán sin BD temporalmente)
 const authRoutes = createAuthRoutes(null);
 app.use('/api/auth', authRoutes);
+console.log('⚠️ Auth routes configured WITHOUT database (temporary)');
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
@@ -1257,10 +1265,13 @@ async function startServer() {
     
     await initDatabase();
     
-    // Configurar rutas de autenticación después de inicializar DB
-    // Auth routes ya configuradas antes del catch-all
-    // setupAuthRoutes();
-    console.log('✅ Rutas de autenticación configuradas');
+    // Reconfigurar rutas de autenticación con la BD conectada
+    if (useDatabase && db) {
+      setupAuthRoutes();
+      console.log('✅ Rutas de autenticación reconfiguradas con BD');
+    } else {
+      console.log('⚠️ Rutas de autenticación sin BD')
+    }
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
