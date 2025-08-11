@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
+const logger = require('./utils/logger.cjs');
 
 dotenv.config();
 
@@ -184,6 +185,19 @@ async function initDatabase() {
   }
 }
 
+// Endpoint para ver los logs de Calendar
+app.get('/api/logs/calendar', (req, res) => {
+  const fs = require('fs');
+  const logPath = logger.getLogPath();
+  
+  if (fs.existsSync(logPath)) {
+    const logs = fs.readFileSync(logPath, 'utf8');
+    res.type('text/plain').send(logs);
+  } else {
+    res.send('No hay logs disponibles aún');
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -327,14 +341,16 @@ const calendarFunctions = {
   
   schedule_meeting: async (params, userTokens) => {
     try {
-      console.log('📅 Función schedule_meeting llamada');
-      console.log('   Parámetros:', params);
-      console.log('   Tokens disponibles:', userTokens ? '✅ Sí' : '❌ No');
+      logger.logCalendarEvent('SCHEDULE_MEETING_CALLED', {
+        params: params,
+        hasTokens: !!userTokens,
+        hasAccessToken: !!(userTokens && userTokens.access_token)
+      });
       
       // Validación explícita de tokens
       if (userTokens && userTokens.access_token) {
-        console.log('🔐 INTENTANDO USAR GOOGLE CALENDAR REAL');
-        console.log('   Access token presente:', userTokens.access_token.substring(0, 20) + '...');
+        logger.writeLog('🔐 INTENTANDO USAR GOOGLE CALENDAR REAL');
+        logger.writeLog('Access token presente:', userTokens.access_token.substring(0, 20) + '...');
         
         calendarService.setCredentials(userTokens);
         
@@ -448,7 +464,7 @@ app.post('/api/chat', async (req, res) => {
     // Obtener tokens del usuario para Calendar si está en modo calendar
     let userTokens = null;
     if (mode_id === 'calendar') {
-      console.log('🗓️ Modo Calendar detectado, buscando tokens OAuth...');
+      logger.writeLog('🗓️ Modo Calendar detectado, buscando tokens OAuth...');
       const authHeader = req.headers['authorization'];
       if (authHeader && useDatabase) {
         const token = authHeader.split(' ')[1];
@@ -456,7 +472,7 @@ app.post('/api/chat', async (req, res) => {
         try {
           // Decodificar el JWT para obtener el user_id
           const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
-          console.log('👤 Usuario autenticado:', decoded.email);
+          logger.writeLog('👤 Usuario autenticado:', { email: decoded.email, id: decoded.id });
           
           if (decoded.id) {
             // Obtener tokens de Google del usuario
@@ -472,19 +488,23 @@ app.post('/api/chat', async (req, res) => {
                 token_type: tokens[0].token_type,
                 expiry_date: tokens[0].expires_at ? new Date(tokens[0].expires_at).getTime() : null
               };
-              console.log('✅ Tokens de Calendar obtenidos de la BD');
-              console.log('   Access token:', userTokens.access_token ? 'Presente' : 'Faltante');
+              logger.writeLog('✅ Tokens de Calendar obtenidos de la BD', {
+                hasAccessToken: !!userTokens.access_token,
+                hasRefreshToken: !!userTokens.refresh_token,
+                tokenType: userTokens.token_type
+              });
             } else {
-              console.log('⚠️ No hay tokens de Calendar guardados para este usuario');
+              logger.writeLog('⚠️ No hay tokens de Calendar guardados para este usuario');
             }
           }
         } catch (error) {
-          console.log('❌ Error obteniendo tokens de Calendar:', error.message);
+          logger.logError(error);
+          logger.writeLog('❌ Error obteniendo tokens de Calendar:', error.message);
         }
       } else if (!useDatabase) {
-        console.log('⚠️ No hay BD conectada - Calendar funcionará en modo simulación');
+        logger.writeLog('⚠️ No hay BD conectada - Calendar funcionará en modo simulación');
       } else if (!authHeader) {
-        console.log('⚠️ No hay header de autorización');
+        logger.writeLog('⚠️ No hay header de autorización');
       }
     }
 
