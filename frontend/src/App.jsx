@@ -3,7 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
-import Login from './components/Login';
+import LoginWithCalendar from './components/LoginWithCalendar';
 import './App.css';
 
 function App() {
@@ -548,7 +548,7 @@ function App() {
 
   // Mostrar login si es necesario
   if (showLogin) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <LoginWithCalendar onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
