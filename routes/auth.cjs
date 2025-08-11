@@ -361,28 +361,44 @@ const createAuthRoutes = (db) => {
           expiryDate: googleTokens.expiry_date
         });
         
-        const result = await db.execute(
-          `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
-           VALUES (?, 'google_calendar', ?, ?, ?) 
-           ON DUPLICATE KEY UPDATE 
-           access_token = VALUES(access_token), 
-           refresh_token = VALUES(refresh_token),
-           expires_at = VALUES(expires_at)`,
-          [
-            user.id,
-            googleTokens.access_token,
-            googleTokens.refresh_token,
-            googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
-          ]
-        );
-        console.log('✅ Tokens de Google Calendar guardados exitosamente');
-        console.log('   Resultado:', result[0].affectedRows, 'filas afectadas');
-        
-        logger.writeLog('✅ Tokens guardados en BD exitosamente', {
-          affectedRows: result[0].affectedRows,
-          insertId: result[0].insertId,
-          warningCount: result[0].warningCount
-        });
+        try {
+          console.log('📝 Ejecutando INSERT con valores:');
+          console.log('   user_id:', user.id, 'tipo:', typeof user.id);
+          console.log('   service: google_calendar');
+          console.log('   access_token length:', googleTokens.access_token?.length);
+          console.log('   refresh_token length:', googleTokens.refresh_token?.length);
+          console.log('   expires_at:', googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000));
+          
+          const result = await db.execute(
+            `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
+             VALUES (?, 'google_calendar', ?, ?, ?) 
+             ON DUPLICATE KEY UPDATE 
+             access_token = VALUES(access_token), 
+             refresh_token = VALUES(refresh_token),
+             expires_at = VALUES(expires_at)`,
+            [
+              user.id,
+              googleTokens.access_token,
+              googleTokens.refresh_token,
+              googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
+            ]
+          );
+          console.log('✅ Tokens de Google Calendar guardados exitosamente');
+          console.log('   Resultado:', result[0].affectedRows, 'filas afectadas');
+        } catch (insertError) {
+          console.error('❌ ERROR al guardar tokens en BD:', insertError.message);
+          console.error('   SQL Error Code:', insertError.code);
+          console.error('   SQL State:', insertError.sqlState);
+          console.error('   SQL Message:', insertError.sqlMessage);
+          logger.writeLog('❌ ERROR CRÍTICO en INSERT de tokens', {
+            error: insertError.message,
+            code: insertError.code,
+            sqlState: insertError.sqlState,
+            sqlMessage: insertError.sqlMessage,
+            userId: user.id
+          });
+          // NO lanzar el error para que el usuario al menos pueda autenticarse
+        }
       } else {
         console.log('⚠️ NO se guardaron tokens porque:');
         if (!db) console.log('   - No hay conexión a BD');
