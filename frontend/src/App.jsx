@@ -593,7 +593,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v3.13</h1>
+            <h1>Asistente IA v3.15</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <button 
