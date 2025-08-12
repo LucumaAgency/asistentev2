@@ -61,9 +61,11 @@ const verifyGoogleToken = async (token) => {
 
 // Funciones auxiliares de auth.cjs
 const generateToken = (user) => {
+  // IMPORTANTE: Usar el ID numérico de la BD, no el google_id
   return jwt.sign(
     {
-      id: user.id,
+      id: user.id,  // Este debe ser el ID numérico de la tabla users
+      google_id: user.google_id, // También incluir el google_id por si acaso
       email: user.email,
       name: user.name,
       picture: user.picture
@@ -327,6 +329,11 @@ const createAuthRoutes = (db) => {
       }
 
       const user = await createOrUpdateUser(db, googleData);
+      console.log('👤 Usuario después de createOrUpdateUser:');
+      console.log('   ID numérico:', user.id, 'tipo:', typeof user.id);
+      console.log('   Google ID:', user.google_id);
+      console.log('   Email:', user.email);
+      
       const token = generateToken(user);
       const refreshToken = generateRefreshToken(user);
 
@@ -349,7 +356,8 @@ const createAuthRoutes = (db) => {
       
       if (db && user.id && googleTokens) {
         console.log('💾 Guardando tokens en BD...');
-        console.log('   User ID a guardar:', user.id);
+        console.log('   User ID a guardar:', user.id, 'tipo:', typeof user.id);
+        console.log('   ¿Es número?:', !isNaN(user.id));
         console.log('   Access token length:', googleTokens.access_token?.length);
         console.log('   Refresh token length:', googleTokens.refresh_token?.length);
         
@@ -369,6 +377,12 @@ const createAuthRoutes = (db) => {
           console.log('   refresh_token length:', googleTokens.refresh_token?.length);
           console.log('   expires_at:', googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000));
           
+          // Asegurar que user.id es un número
+          const userId = parseInt(user.id, 10);
+          if (isNaN(userId)) {
+            throw new Error(`User ID inválido: ${user.id} (tipo: ${typeof user.id})`);
+          }
+          
           const result = await db.execute(
             `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
              VALUES (?, 'google_calendar', ?, ?, ?) 
@@ -377,7 +391,7 @@ const createAuthRoutes = (db) => {
              refresh_token = VALUES(refresh_token),
              expires_at = VALUES(expires_at)`,
             [
-              user.id,
+              userId,
               googleTokens.access_token,
               googleTokens.refresh_token,
               googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
