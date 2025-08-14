@@ -62,10 +62,21 @@ const verifyGoogleToken = async (token) => {
 // Funciones auxiliares de auth.cjs
 const generateToken = (user) => {
   // IMPORTANTE: Usar el ID numérico de la BD, no el google_id
+  // FIX CRÍTICO: Asegurar que user.id sea número
+  const numericId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+  
+  console.log('📌 generateToken - IDs:', {
+    original_id: user.id,
+    original_type: typeof user.id,
+    numeric_id: numericId,
+    numeric_type: typeof numericId,
+    google_id: user.google_id
+  });
+  
   return jwt.sign(
     {
-      id: user.id,  // Este debe ser el ID numérico de la tabla users
-      google_id: user.google_id, // También incluir el google_id por si acaso
+      id: numericId,  // SIEMPRE usar el ID numérico
+      google_id: user.google_id,
       email: user.email,
       name: user.name,
       picture: user.picture
@@ -333,6 +344,14 @@ const createAuthRoutes = (db) => {
       console.log('   ID numérico:', user.id, 'tipo:', typeof user.id);
       console.log('   Google ID:', user.google_id);
       console.log('   Email:', user.email);
+      
+      // CRITICAL FIX: Asegurar que el token use el ID numérico, no el google_id
+      console.log('🔥 GENERANDO TOKEN - Usuario completo:', {
+        id: user.id,
+        idType: typeof user.id,
+        google_id: user.google_id,
+        email: user.email
+      });
       
       const token = generateToken(user);
       const refreshToken = generateRefreshToken(user);
