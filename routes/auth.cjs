@@ -424,11 +424,34 @@ const createAuthRoutes = (db) => {
         await createSession(db, user.id, token, refreshToken);
       }
 
+      // Verificar si el usuario tiene acceso a Calendar
+      let hasCalendarAccess = false;
+      if (googleTokens) {
+        // Si acabamos de obtener tokens nuevos, tiene acceso
+        hasCalendarAccess = true;
+      } else if (db && user.id) {
+        // Verificar si ya tiene tokens guardados de antes
+        try {
+          const [existingTokens] = await db.execute(
+            'SELECT id, expires_at FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
+            [user.id]
+          );
+          
+          if (existingTokens.length > 0) {
+            // Verificar si el token no ha expirado
+            const expiresAt = new Date(existingTokens[0].expires_at);
+            hasCalendarAccess = expiresAt > new Date();
+          }
+        } catch (error) {
+          console.log('Error verificando tokens existentes:', error);
+        }
+      }
+      
       const responseData = {
         success: true,
         token,
         refreshToken,
-        hasCalendarAccess: !!googleTokens,
+        hasCalendarAccess,
         user: {
           id: user.id,
           email: user.email,

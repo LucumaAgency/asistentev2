@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
 import LoginWithCalendar from './components/LoginWithCalendar';
+import CalendarEvents from './components/CalendarEvents';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [hasCalendarAccess, setHasCalendarAccess] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -603,16 +605,15 @@ function App() {
           >
             + Nuevo Chat
           </button>
-          {/* Botón de Calendar oculto temporalmente - el login ya pide permisos de Calendar
-          {currentMode?.id === 'calendar' && isAuthenticated && (
+          {isAuthenticated && (
             <button 
-              className={`calendar-auth-button ${hasCalendarAccess ? 'authorized' : ''}`}
-              onClick={authorizeCalendar}
-              title={hasCalendarAccess ? 'Calendario autorizado' : 'Autorizar acceso a Calendar'}
+              className="calendar-button"
+              onClick={() => setShowCalendarModal(true)}
+              title="Ver eventos de Calendar"
             >
-              📅 {hasCalendarAccess ? '✓' : 'Autorizar'}
+              📅 Calendar
             </button>
-          )} */}
+          )}
           <div className="user-menu">
             {user ? (
               <div className="user-info">
@@ -760,6 +761,12 @@ function App() {
           )}
         </div>
       </div>
+      
+      {/* Modal de Calendar */}
+      <CalendarEvents 
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+      />
     </div>
   );
 }

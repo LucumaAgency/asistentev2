@@ -398,6 +398,88 @@ const calendarFunctions = {
     try {
       if (userTokens && userTokens.access_token) {
         calendarService.setCredentials(userTokens);
+        const result = await calendarService.checkAvailability(
+          params.date,
+          params.time,
+          params.duration || 30
+        );
+        
+        return {
+          success: true,
+          available: result.available,
+          conflicts: result.conflicts,
+          message: result.available 
+            ? `✅ El horario está disponible`
+            : `❌ Hay conflictos en ese horario: ${result.conflicts.map(c => `${c.start} - ${c.end}`).join(', ')}`
+        };
+      } else {
+        return {
+          success: true,
+          available: true,
+          message: '📅 [SIMULACIÓN] El horario parece estar disponible. Para verificar realmente, autoriza el acceso a Calendar.',
+          simulated: true
+        };
+      }
+    } catch (error) {
+      console.error('Error verificando disponibilidad:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+  
+  list_events: async (params, userTokens) => {
+    try {
+      if (userTokens && userTokens.access_token) {
+        calendarService.setCredentials(userTokens);
+        const events = params.today 
+          ? await calendarService.getTodayEvents()
+          : await calendarService.listEvents(params.timeMin, params.maxResults || 10);
+        
+        if (events.length === 0) {
+          return {
+            success: true,
+            events: [],
+            message: '📅 No tienes eventos programados para este período'
+          };
+        }
+        
+        const formattedEvents = events.map(event => ({
+          id: event.id,
+          title: event.summary,
+          start: event.start?.dateTime || event.start?.date,
+          end: event.end?.dateTime || event.end?.date,
+          meetLink: event.conferenceData?.entryPoints?.[0]?.uri
+        }));
+        
+        return {
+          success: true,
+          events: formattedEvents,
+          count: events.length,
+          message: `📅 Tienes ${events.length} evento(s) programado(s)`
+        };
+      } else {
+        return {
+          success: true,
+          events: [],
+          message: '📅 [SIMULACIÓN] Para ver tus eventos reales, autoriza el acceso a Calendar.',
+          simulated: true
+        };
+      }
+    } catch (error) {
+      console.error('Error listando eventos:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+  
+  find_next_available: async (params, userTokens) => {
+    try {
+      if (userTokens && userTokens.access_token) {
+        calendarService.setCredentials(userTokens);
         
         const result = await calendarService.checkAvailability(
           params.date,
@@ -707,6 +789,35 @@ app.post('/api/chat', async (req, res) => {
               required: ['date', 'time']
             }
           }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'list_events',
+            description: 'Listar eventos del calendario',
+            parameters: {
+              type: 'object',
+              properties: {
+                today: { type: 'boolean', description: 'Si es true, muestra solo eventos de hoy' },
+                timeMin: { type: 'string', description: 'Fecha/hora mínima en formato ISO' },
+                maxResults: { type: 'number', description: 'Número máximo de eventos a retornar' }
+              }
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'find_next_available',
+            description: 'Encontrar el próximo horario disponible',
+            parameters: {
+              type: 'object',
+              properties: {
+                duration: { type: 'number', description: 'Duración deseada en minutos' },
+                startFrom: { type: 'string', description: 'Fecha/hora desde donde buscar (ISO format)' }
+              }
+            }
+          }
         }
       ];
     }
@@ -752,6 +863,9 @@ app.post('/api/chat', async (req, res) => {
             break;
           case 'check_availability':
             result = await calendarFunctions.check_availability(functionArgs, userTokens);
+            break;
+          case 'list_events':
+            result = await calendarFunctions.list_events(functionArgs, userTokens);
             break;
           case 'find_next_available':
             result = await calendarFunctions.find_next_available(functionArgs, userTokens);
@@ -983,7 +1097,17 @@ app.delete('/api/modes/:mode_id', async (req, res) => {
   }
 });
 
-// ======== CALENDAR AUTHORIZATION ENDPOINTS ========
+// ======== CALENDAR ENDPOINTS ========
+// Importar middleware de Calendar
+const { calendarAuth, calendarAuthOptional } = require('./middleware/calendarAuth.cjs');
+
+// Middleware para pasar la BD a los middlewares
+app.use((req, res, next) => {
+  req.db = db;
+  next();
+});
+
+// Obtener URL de autorización (redundante con /api/auth/google/auth-url pero lo mantenemos por compatibilidad)
 app.get('/api/calendar/auth-url', (req, res) => {
   try {
     const authUrl = calendarService.getAuthUrl();
@@ -994,28 +1118,173 @@ app.get('/api/calendar/auth-url', (req, res) => {
   }
 });
 
-app.post('/api/calendar/auth-callback', async (req, res) => {
+// Listar eventos del calendario
+app.get('/api/calendar/events', calendarAuth, async (req, res) => {
   try {
-    const { code } = req.body;
+    console.log('📅 Listando eventos del calendario para usuario:', req.userEmail);
     
-    if (!code) {
-      return res.status(400).json({ error: 'Código de autorización no proporcionado' });
-    }
-    
-    const tokens = await calendarService.getTokens(code);
-    
-    // TODO: Guardar tokens en la base de datos asociados al usuario
-    // Por ahora los devolvemos para que el frontend los guarde
+    const { timeMin, maxResults = 10 } = req.query;
+    const events = await req.calendarService.listEvents(timeMin, maxResults);
     
     res.json({ 
       success: true,
-      tokens,
-      message: 'Calendario autorizado exitosamente'
+      events,
+      count: events.length
     });
   } catch (error) {
-    console.error('Error procesando autorización:', error);
-    res.status(500).json({ error: 'Error al procesar autorización' });
+    console.error('❌ Error listando eventos:', error);
+    res.status(500).json({ error: 'Error al obtener eventos del calendario' });
   }
+});
+
+// Obtener eventos de hoy
+app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
+  try {
+    console.log('📅 Obteniendo eventos de hoy para:', req.userEmail);
+    
+    const events = await req.calendarService.getTodayEvents();
+    
+    res.json({ 
+      success: true,
+      events,
+      count: events.length
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo eventos de hoy:', error);
+    res.status(500).json({ error: 'Error al obtener eventos de hoy' });
+  }
+});
+
+// Crear un evento
+app.post('/api/calendar/events', calendarAuth, async (req, res) => {
+  try {
+    console.log('📅 Creando evento para usuario:', req.userEmail);
+    console.log('   Datos del evento:', req.body);
+    
+    const { title, description, date, time, duration, attendees } = req.body;
+    
+    if (!title || !date || !time) {
+      return res.status(400).json({ 
+        error: 'Título, fecha y hora son requeridos' 
+      });
+    }
+    
+    const eventDetails = {
+      title,
+      description,
+      date,
+      time,
+      duration: duration || 30,
+      attendees: attendees || []
+    };
+    
+    const result = await req.calendarService.createEvent(eventDetails);
+    
+    console.log('✅ Evento creado exitosamente:', result.eventId);
+    
+    res.json({
+      success: true,
+      eventId: result.eventId,
+      htmlLink: result.htmlLink,
+      meetLink: result.meetLink,
+      message: 'Evento creado exitosamente'
+    });
+  } catch (error) {
+    console.error('❌ Error creando evento:', error);
+    res.status(500).json({ error: 'Error al crear evento en el calendario' });
+  }
+});
+
+// Verificar disponibilidad
+app.post('/api/calendar/check-availability', calendarAuth, async (req, res) => {
+  try {
+    const { date, time, duration = 30 } = req.body;
+    
+    if (!date || !time) {
+      return res.status(400).json({ 
+        error: 'Fecha y hora son requeridas' 
+      });
+    }
+    
+    console.log('🔍 Verificando disponibilidad:', { date, time, duration });
+    
+    const availability = await req.calendarService.checkAvailability(date, time, duration);
+    
+    res.json({
+      success: true,
+      ...availability
+    });
+  } catch (error) {
+    console.error('❌ Error verificando disponibilidad:', error);
+    res.status(500).json({ error: 'Error al verificar disponibilidad' });
+  }
+});
+
+// Buscar próximo horario disponible
+app.get('/api/calendar/next-available', calendarAuth, async (req, res) => {
+  try {
+    const { duration = 30 } = req.query;
+    
+    console.log('🔍 Buscando próximo horario disponible');
+    
+    const result = await req.calendarService.findNextAvailableSlot(parseInt(duration));
+    
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error('❌ Error buscando horario disponible:', error);
+    res.status(500).json({ error: 'Error al buscar horario disponible' });
+  }
+});
+
+// Actualizar un evento
+app.patch('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const updates = req.body;
+    
+    console.log('📝 Actualizando evento:', eventId);
+    
+    const updatedEvent = await req.calendarService.updateEvent(eventId, updates);
+    
+    res.json({
+      success: true,
+      event: updatedEvent,
+      message: 'Evento actualizado exitosamente'
+    });
+  } catch (error) {
+    console.error('❌ Error actualizando evento:', error);
+    res.status(500).json({ error: 'Error al actualizar evento' });
+  }
+});
+
+// Eliminar un evento
+app.delete('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    console.log('🗑️ Eliminando evento:', eventId);
+    
+    await req.calendarService.deleteEvent(eventId);
+    
+    res.json({
+      success: true,
+      message: 'Evento eliminado exitosamente'
+    });
+  } catch (error) {
+    console.error('❌ Error eliminando evento:', error);
+    res.status(500).json({ error: 'Error al eliminar evento' });
+  }
+});
+
+// Verificar si el usuario tiene acceso a Calendar
+app.get('/api/calendar/check-access', calendarAuthOptional, (req, res) => {
+  res.json({
+    hasAccess: req.hasCalendarAccess || false,
+    userEmail: req.userEmail || null
+  });
 });
 
 // ======== CHAT SESSIONS ENDPOINTS ========
