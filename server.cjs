@@ -341,16 +341,26 @@ const calendarFunctions = {
   
   schedule_meeting: async (params, userTokens) => {
     try {
-      logger.logCalendarEvent('SCHEDULE_MEETING_CALLED', {
+      logger.logCalendarEvent('🎯 SCHEDULE_MEETING_CALLED', {
         params: params,
         hasTokens: !!userTokens,
-        hasAccessToken: !!(userTokens && userTokens.access_token)
+        hasAccessToken: !!(userTokens && userTokens.access_token),
+        tokenLength: userTokens?.access_token?.length
+      });
+      
+      console.log('📅 FUNCIÓN schedule_meeting llamada con parámetros:', JSON.stringify(params, null, 2));
+      console.log('🔑 Tokens disponibles:', {
+        hasTokens: !!userTokens,
+        hasAccessToken: !!(userTokens && userTokens.access_token),
+        accessTokenPreview: userTokens?.access_token ? userTokens.access_token.substring(0, 30) + '...' : 'NO HAY TOKEN'
       });
       
       // Validación explícita de tokens
       if (userTokens && userTokens.access_token) {
-        logger.writeLog('🔐 INTENTANDO USAR GOOGLE CALENDAR REAL');
-        logger.writeLog('Access token presente:', userTokens.access_token.substring(0, 20) + '...');
+        logger.writeLog('🔐 USANDO GOOGLE CALENDAR REAL - CREANDO EVENTO');
+        logger.writeLog('   Título:', params.title);
+        logger.writeLog('   Fecha:', params.date);
+        logger.writeLog('   Hora:', params.time);
         
         calendarService.setCredentials(userTokens);
         
@@ -364,28 +374,35 @@ const calendarFunctions = {
           add_meet: params.add_meet !== false // Por defecto agregar Google Meet
         });
         
-        console.log('🎉 EVENTO CREADO - Resultado:', result);
+        console.log('🎉 EVENTO CREADO EXITOSAMENTE:', result);
+        logger.writeLog('✅ EVENTO CREADO EN GOOGLE CALENDAR', {
+          eventId: result.eventId,
+          meetLink: result.meetLink,
+          calendarLink: result.htmlLink
+        });
         
         return {
           success: true,
           meeting_id: result.eventId,
           meet_link: result.meetLink,
           calendar_link: result.htmlLink,
-          message: `✅ Reunión "${params.title}" agendada exitosamente para ${params.date} a las ${params.time}. ${result.meetLink ? 'Link de Google Meet: ' + result.meetLink : ''}`
+          message: `✅ Reunión "${params.title}" agendada exitosamente para ${params.date} a las ${params.time}. ${result.meetLink ? '\n📹 Link de Google Meet: ' + result.meetLink : ''}`
         };
       } else {
         // Modo simulación si no hay tokens
-        console.log('⚠️ NO HAY TOKENS - USANDO MODO SIMULACIÓN');
+        console.log('⚠️ NO HAY TOKENS DE CALENDAR - MODO SIMULACIÓN');
+        logger.writeLog('⚠️ MODO SIMULACIÓN - No hay tokens de Calendar');
         return {
           success: true,
           meeting_id: 'sim_' + Date.now(),
           meet_link: 'https://meet.google.com/sim-demo-test',
-          message: `📅 [SIMULACIÓN] Reunión "${params.title}" agendada para ${params.date} a las ${params.time}. Para agendar realmente, necesitas autorizar el acceso a Google Calendar.`,
+          message: `📅 [SIMULACIÓN] Reunión "${params.title}" agendada para ${params.date} a las ${params.time}.\n⚠️ Para agendar realmente en Google Calendar, asegúrate de haber iniciado sesión con los permisos de Calendar.`,
           simulated: true
         };
       }
     } catch (error) {
-      console.error('Error agendando reunión:', error);
+      console.error('❌ ERROR AGENDANDO REUNIÓN:', error);
+      logger.logError(error);
       return {
         success: false,
         error: error.message,
@@ -546,7 +563,10 @@ app.post('/api/chat', async (req, res) => {
     // Obtener tokens del usuario para Calendar si está en modo calendar
     let userTokens = null;
     if (mode_id === 'calendar') {
-      logger.writeLog('🗓️ Modo Calendar detectado, buscando tokens OAuth...');
+      logger.writeLog('📅 ==========MODO CALENDAR ACTIVADO==========');
+      logger.writeLog('   Mensaje recibido:', message);
+      logger.writeLog('   Session ID:', session_id);
+      logger.writeLog('   Mode ID:', mode_id);
       const authHeader = req.headers['authorization'];
       if (authHeader && useDatabase) {
         const token = authHeader.split(' ')[1];
@@ -562,22 +582,27 @@ app.post('/api/chat', async (req, res) => {
           });
           
           if (decoded.id) {
-            // Si el ID es un string largo (google_id), necesitamos obtener el ID numérico real
+            // IMPORTANTE: El ID en el JWT debe ser el ID numérico de la tabla users
             let realUserId = decoded.id;
             
-            // Si el ID es un string largo (>10 chars), es probablemente el google_id
-            if (typeof decoded.id === 'string' && decoded.id.length > 10) {
-              logger.writeLog('🔍 ID parece ser google_id, buscando ID real en users...');
-              const [users] = await db.execute(
-                'SELECT id FROM users WHERE google_id = ?',
-                [decoded.id]
-              );
+            // Convertir a número si es string
+            if (typeof realUserId === 'string') {
+              realUserId = parseInt(realUserId, 10);
               
-              if (users.length > 0) {
-                realUserId = users[0].id;
-                logger.writeLog('✅ ID real encontrado:', realUserId);
-              } else {
-                logger.writeLog('❌ No se encontró usuario con google_id:', decoded.id);
+              // Si no es un número válido, buscar por email
+              if (isNaN(realUserId)) {
+                logger.writeLog('⚠️ ID no es numérico, buscando por email:', decoded.email);
+                const [users] = await db.execute(
+                  'SELECT id FROM users WHERE email = ?',
+                  [decoded.email]
+                );
+                
+                if (users.length > 0) {
+                  realUserId = users[0].id;
+                  logger.writeLog('✅ ID real encontrado por email:', realUserId);
+                } else {
+                  logger.writeLog('❌ No se encontró usuario con email:', decoded.email);
+                }
               }
             }
             
