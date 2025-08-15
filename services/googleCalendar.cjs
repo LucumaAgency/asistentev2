@@ -193,12 +193,18 @@ class GoogleCalendarService {
 
   // Funciones auxiliares
   combineDateAndTime(date, time) {
-    return `${date}T${time}:00`;
+    // Crear fecha completa con formato ISO
+    const dateTime = new Date(`${date}T${time}:00`);
+    console.log('   combineDateAndTime input:', { date, time });
+    console.log('   combineDateAndTime output:', dateTime.toISOString());
+    return dateTime.toISOString();
   }
 
   calculateEndTime(date, time, durationMinutes) {
     const startDateTime = new Date(`${date}T${time}:00`);
     const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
+    console.log('   calculateEndTime input:', { date, time, durationMinutes });
+    console.log('   calculateEndTime output:', endDateTime.toISOString());
     return endDateTime.toISOString();
   }
 
