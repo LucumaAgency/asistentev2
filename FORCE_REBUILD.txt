@@ -1,3 +1,3 @@
-Force rebuild for v3.25
-Date: 2025-01-15 00:30
-Changes: Debugging mejorado para creación de eventos
+Force rebuild for v3.26
+Date: 2025-01-15 00:45
+Changes: FIX - Formato ISO correcto para fechas en Calendar
