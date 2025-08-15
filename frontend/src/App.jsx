@@ -58,7 +58,7 @@ function App() {
     }
     
     // Verificar si hay token guardado
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');  // Cambiar authToken por token
     const savedUser = localStorage.getItem('user');
     
     if (token && savedUser) {
@@ -437,7 +437,7 @@ function App() {
     }
     
     // Limpiar datos locales
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
@@ -518,7 +518,7 @@ function App() {
               if (response.data.success) {
                 // Actualizar tokens
                 if (response.data.token) {
-                  localStorage.setItem('authToken', response.data.token);
+                  localStorage.setItem('token', response.data.token);
                   axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
                 }
                 
