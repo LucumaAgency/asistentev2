@@ -53,7 +53,8 @@ class GoogleCalendarService {
         orderBy: 'startTime',
       });
       
-      return response.data.items;
+      // Asegurar que siempre retornamos un array, incluso si no hay eventos
+      return response.data.items || [];
     } catch (error) {
       console.error('Error listando eventos:', error);
       throw error;

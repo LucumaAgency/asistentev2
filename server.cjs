@@ -1168,10 +1168,19 @@ app.get('/api/calendar/events', calendarAuth, async (req, res) => {
     const { timeMin, maxResults = 10 } = req.query;
     const events = await req.calendarService.listEvents(timeMin, maxResults);
     
+    // Formatear eventos para el frontend
+    const formattedEvents = events.map(event => ({
+      id: event.id,
+      title: event.summary || 'Sin título',
+      start: event.start?.dateTime || event.start?.date,
+      end: event.end?.dateTime || event.end?.date,
+      meetLink: event.conferenceData?.entryPoints?.[0]?.uri
+    }));
+    
     res.json({ 
       success: true,
-      events,
-      count: events.length
+      events: formattedEvents,
+      count: formattedEvents.length
     });
   } catch (error) {
     console.error('❌ Error listando eventos:', error);
@@ -1206,10 +1215,19 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
     
     const events = await req.calendarService.getTodayEvents();
     
+    // Formatear eventos para el frontend
+    const formattedEvents = events.map(event => ({
+      id: event.id,
+      title: event.summary || 'Sin título',
+      start: event.start?.dateTime || event.start?.date,
+      end: event.end?.dateTime || event.end?.date,
+      meetLink: event.conferenceData?.entryPoints?.[0]?.uri
+    }));
+    
     res.json({ 
       success: true,
-      events,
-      count: events.length
+      events: formattedEvents,
+      count: formattedEvents.length
     });
   } catch (error) {
     console.error('❌ Error COMPLETO obteniendo eventos de hoy:', error);
