@@ -1132,6 +1132,10 @@ app.delete('/api/modes/:mode_id', async (req, res) => {
 // Importar middleware de Calendar
 const { calendarAuth, calendarAuthOptional } = require('./middleware/calendarAuth.cjs');
 
+// TEMPORAL: Debug endpoint para Calendar
+const { setupCalendarDebug } = require('./calendar-debug-endpoint.cjs');
+setupCalendarDebug(app);
+
 // Middleware para pasar la BD a los middlewares
 app.use((req, res, next) => {
   // Usar el módulo compartido para obtener la BD actual
