@@ -376,6 +376,10 @@ const createAuthRoutes = (db) => {
       // DEBUG SUPER DETALLADO
       console.log('🔍🔍🔍 DEBUG SUPER DETALLADO - GUARDADO DE TOKENS');
       console.log('=========================================');
+      
+      // ESCRIBIR A ARCHIVO PARA DEBUG
+      const fs = require('fs');
+      const debugLog = [];
       console.log('1. VERIFICACIÓN DE CONDICIONES:');
       console.log('   db existe?:', !!db);
       console.log('   user existe?:', !!user);
@@ -402,6 +406,23 @@ const createAuthRoutes = (db) => {
       console.log('3. EVALUACIÓN DE CONDICIÓN:');
       console.log('   db && user.id && googleTokens =', !!(db && user.id && googleTokens));
       console.log('=========================================');
+      
+      // GUARDAR DEBUG A ARCHIVO
+      try {
+        debugLog.push('🔍 DEBUG OAuth Token Save - ' + new Date().toISOString());
+        debugLog.push('DB existe: ' + !!db);
+        debugLog.push('User ID: ' + user?.id);
+        debugLog.push('User ID tipo: ' + typeof user?.id);
+        debugLog.push('GoogleTokens existe: ' + !!googleTokens);
+        debugLog.push('Condición completa: ' + !!(db && user.id && googleTokens));
+        if (googleTokens) {
+          debugLog.push('Access token length: ' + googleTokens.access_token?.length);
+          debugLog.push('Refresh token length: ' + googleTokens.refresh_token?.length);
+        }
+        fs.appendFileSync('./oauth-debug.log', debugLog.join('\n') + '\n\n');
+      } catch (e) {
+        console.log('No se pudo escribir archivo de debug');
+      }
       
       if (db && user.id && googleTokens) {
         console.log('💾 ENTRANDO A GUARDAR TOKENS EN BD...');
