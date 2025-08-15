@@ -616,7 +616,7 @@ app.post('/api/chat', async (req, res) => {
             logger.writeLog('🔎 Buscando tokens en BD para user_id:', realUserId);
             
             const [tokens] = await db.execute(
-              'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ?',
+              'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
               [realUserId]
             );
             
