@@ -1565,21 +1565,40 @@ async function startServer() {
     
     // Reconfigurar auth routes con BD si está disponible
     if (useDatabase && db) {
-      // Remover rutas auth temporales
+      // MEJOR ENFOQUE: Eliminar las rutas temporales buscando específicamente el router
+      const originalStackLength = app._router.stack.length;
       app._router.stack = app._router.stack.filter(layer => {
-        return !layer.regexp || !layer.regexp.toString().includes('/api/auth');
+        // Eliminar solo las rutas que contienen /api/auth
+        if (layer.regexp && layer.regexp.toString().includes('\\/api\\/auth')) {
+          console.log('🗑️ Eliminando ruta temporal:', layer.regexp.toString());
+          return false;
+        }
+        return true;
       });
+      
+      console.log(`🔄 Eliminadas ${originalStackLength - app._router.stack.length} rutas temporales de auth`);
       
       // Configurar nuevas rutas con BD
       const authRoutes = createAuthRoutes(db);
       app.use('/api/auth', authRoutes);
       
       console.log('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
+      console.log('📊 DB pasada a auth routes:', !!db);
+      
+      // Verificar que realmente se pasó la BD
+      try {
+        const testQuery = await db.execute('SELECT 1 as test');
+        console.log('✅ BD verificada y funcionando en contexto de auth');
+      } catch (e) {
+        console.error('❌ ERROR: BD no funciona en contexto de auth:', e.message);
+      }
+      
       try {
         const logger = new Logger();
         logger.writeLog('✅ AUTH ROUTES RECONFIGURADAS CON BD', {
           timestamp: new Date().toISOString(),
-          dbConnected: true
+          dbConnected: true,
+          dbTest: 'passed'
         });
       } catch (e) {}
     } else {
