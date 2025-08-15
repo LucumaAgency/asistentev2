@@ -1134,7 +1134,14 @@ const { calendarAuth, calendarAuthOptional } = require('./middleware/calendarAut
 
 // Middleware para pasar la BD a los middlewares
 app.use((req, res, next) => {
-  req.db = db;
+  // Usar el módulo compartido para obtener la BD actual
+  const currentDb = dbModule.getConnection();
+  req.db = currentDb || db;  // Fallback a db local si existe
+  
+  if (!req.db) {
+    console.log('⚠️ Middleware: No hay BD disponible para Calendar');
+  }
+  
   next();
 });
 
