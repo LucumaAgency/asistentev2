@@ -199,8 +199,10 @@ app.get('/api/logs/calendar', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+  const packageJson = require('./package.json');
   res.json({
     status: 'ok',
+    version: packageJson.version,
     timestamp: new Date().toISOString(),
     database: useDatabase ? 'connected' : 'in-memory',
     openai: !!process.env.OPENAI_API_KEY ? 'configured' : 'not-configured',
