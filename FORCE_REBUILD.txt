@@ -1,3 +1,3 @@
-Force rebuild for v3.23
-Date: 2025-01-15 00:00
-Changes: Debug endpoint para Calendar - verificar tokens y conexión
+Force rebuild for v3.24
+Date: 2025-01-15 00:15
+Changes: Mejor manejo de errores y logs detallados en Calendar

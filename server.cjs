@@ -1184,6 +1184,26 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
   try {
     console.log('📅 Obteniendo eventos de hoy para:', req.userEmail);
     
+    // Verificar que calendarService existe
+    if (!req.calendarService) {
+      console.error('❌ ERROR: No hay calendarService en req');
+      return res.status(500).json({ 
+        error: 'Servicio de Calendar no configurado',
+        details: 'calendarService no existe en request',
+        hasCalendarAccess: req.hasCalendarAccess
+      });
+    }
+    
+    // Verificar que el método existe
+    if (typeof req.calendarService.getTodayEvents !== 'function') {
+      console.error('❌ ERROR: getTodayEvents no es una función');
+      return res.status(500).json({ 
+        error: 'Método getTodayEvents no disponible',
+        details: 'El servicio no tiene el método getTodayEvents',
+        availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(req.calendarService))
+      });
+    }
+    
     const events = await req.calendarService.getTodayEvents();
     
     res.json({ 
@@ -1192,8 +1212,19 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
       count: events.length
     });
   } catch (error) {
-    console.error('❌ Error obteniendo eventos de hoy:', error);
-    res.status(500).json({ error: 'Error al obtener eventos de hoy' });
+    console.error('❌ Error COMPLETO obteniendo eventos de hoy:', error);
+    console.error('   Stack:', error.stack);
+    console.error('   Message:', error.message);
+    
+    // Devolver más detalles del error
+    res.status(500).json({ 
+      error: 'Error al obtener eventos de hoy',
+      message: error.message,
+      details: error.response?.data || error.toString(),
+      hasCalendarService: !!req.calendarService,
+      hasCalendarAccess: req.hasCalendarAccess,
+      userEmail: req.userEmail
+    });
   }
 });
 

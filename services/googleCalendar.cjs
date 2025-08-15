@@ -204,12 +204,36 @@ class GoogleCalendarService {
 
   // Obtener eventos del día
   async getTodayEvents() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    console.log('📅 getTodayEvents iniciado');
     
-    return this.listEvents(today.toISOString(), 20);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      console.log('   Rango de búsqueda:', {
+        desde: today.toISOString(),
+        hasta: tomorrow.toISOString()
+      });
+      
+      // Verificar que tenemos credenciales
+      const creds = this.oauth2Client.credentials;
+      console.log('   Credenciales OAuth:', {
+        hasAccessToken: !!creds.access_token,
+        hasRefreshToken: !!creds.refresh_token,
+        accessTokenLength: creds.access_token?.length
+      });
+      
+      const events = await this.listEvents(today.toISOString(), 20);
+      console.log(`   ✅ ${events.length} eventos encontrados`);
+      
+      return events;
+    } catch (error) {
+      console.error('❌ Error en getTodayEvents:', error.message);
+      console.error('   Detalles:', error.response?.data || error);
+      throw error;
+    }
   }
 
   // Buscar próximo horario disponible
