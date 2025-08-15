@@ -1590,6 +1590,10 @@ const createAuthRoutes = require('./routes/auth.cjs');
 const { optionalAuth } = require('./middleware/auth.cjs');
 const dbModule = require('./db-connection.cjs');
 
+// Agregar endpoint de test para Calendar IA
+const testCalendarRouter = require('./test-ai-calendar-status.cjs');
+app.use('/api/test', testCalendarRouter);
+
 // Endpoint de debug para verificar configuración
 app.get('/api/auth/config-check', (req, res) => {
   res.json({
