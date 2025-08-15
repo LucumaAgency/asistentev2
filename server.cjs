@@ -1263,8 +1263,18 @@ app.post('/api/calendar/events', calendarAuth, async (req, res) => {
       message: 'Evento creado exitosamente'
     });
   } catch (error) {
-    console.error('❌ Error creando evento:', error);
-    res.status(500).json({ error: 'Error al crear evento en el calendario' });
+    console.error('❌ Error COMPLETO creando evento:', error);
+    console.error('   Stack:', error.stack);
+    console.error('   Message:', error.message);
+    console.error('   Response data:', error.response?.data);
+    
+    res.status(500).json({ 
+      error: 'Error al crear evento en el calendario',
+      message: error.message,
+      details: error.response?.data || error.toString(),
+      hasCalendarService: !!req.calendarService,
+      userEmail: req.userEmail
+    });
   }
 });
 
