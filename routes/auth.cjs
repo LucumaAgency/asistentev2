@@ -373,8 +373,38 @@ const createAuthRoutes = (db) => {
         tokenScopes: googleTokens?.scope
       });
       
+      // DEBUG SUPER DETALLADO
+      console.log('🔍🔍🔍 DEBUG SUPER DETALLADO - GUARDADO DE TOKENS');
+      console.log('=========================================');
+      console.log('1. VERIFICACIÓN DE CONDICIONES:');
+      console.log('   db existe?:', !!db);
+      console.log('   user existe?:', !!user);
+      console.log('   user.id existe?:', !!user?.id);
+      console.log('   user.id valor:', user?.id);
+      console.log('   user.id tipo:', typeof user?.id);
+      console.log('   googleTokens existe?:', !!googleTokens);
+      console.log('   googleTokens es objeto?:', typeof googleTokens === 'object');
+      console.log('   googleTokens.access_token existe?:', !!googleTokens?.access_token);
+      console.log('   googleTokens.refresh_token existe?:', !!googleTokens?.refresh_token);
+      console.log('');
+      console.log('2. CONTENIDO DE googleTokens:');
+      if (googleTokens) {
+        console.log('   access_token primeros 20 chars:', googleTokens.access_token?.substring(0, 20));
+        console.log('   refresh_token primeros 20 chars:', googleTokens.refresh_token?.substring(0, 20));
+        console.log('   token_type:', googleTokens.token_type);
+        console.log('   expiry_date:', googleTokens.expiry_date);
+        console.log('   scope:', googleTokens.scope);
+        console.log('   id_token existe?:', !!googleTokens.id_token);
+      } else {
+        console.log('   googleTokens es null o undefined');
+      }
+      console.log('');
+      console.log('3. EVALUACIÓN DE CONDICIÓN:');
+      console.log('   db && user.id && googleTokens =', !!(db && user.id && googleTokens));
+      console.log('=========================================');
+      
       if (db && user.id && googleTokens) {
-        console.log('💾 Guardando tokens en BD...');
+        console.log('💾 ENTRANDO A GUARDAR TOKENS EN BD...');
         console.log('   User ID a guardar:', user.id, 'tipo:', typeof user.id);
         console.log('   ¿Es número?:', !isNaN(user.id));
         console.log('   Access token length:', googleTokens.access_token?.length);
@@ -389,11 +419,11 @@ const createAuthRoutes = (db) => {
         });
         
         try {
-          console.log('📝 Ejecutando INSERT con valores:');
+          console.log('📝 EJECUTANDO INSERT - VALORES EXACTOS:');
           console.log('   user_id:', user.id, 'tipo:', typeof user.id);
           console.log('   service: google_calendar');
-          console.log('   access_token length:', googleTokens.access_token?.length);
-          console.log('   refresh_token length:', googleTokens.refresh_token?.length);
+          console.log('   access_token primeros 50 chars:', googleTokens.access_token?.substring(0, 50));
+          console.log('   refresh_token primeros 50 chars:', googleTokens.refresh_token?.substring(0, 50));
           console.log('   expires_at:', googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000));
           
           // Asegurar que user.id es un número
@@ -401,6 +431,10 @@ const createAuthRoutes = (db) => {
           if (isNaN(userId)) {
             throw new Error(`User ID inválido: ${user.id} (tipo: ${typeof user.id})`);
           }
+          
+          console.log('📊 ANTES DEL EXECUTE:');
+          console.log('   userId convertido:', userId);
+          console.log('   userId es número?:', typeof userId === 'number');
           
           const result = await db.execute(
             `INSERT INTO user_tokens (user_id, service, access_token, refresh_token, expires_at) 
@@ -416,27 +450,35 @@ const createAuthRoutes = (db) => {
               googleTokens.expiry_date ? new Date(googleTokens.expiry_date) : new Date(Date.now() + 3600000)
             ]
           );
-          console.log('✅ Tokens de Google Calendar guardados exitosamente');
-          console.log('   Resultado:', result[0].affectedRows, 'filas afectadas');
+          console.log('✅ TOKENS GUARDADOS - RESULTADO:');
+          console.log('   affectedRows:', result[0].affectedRows);
+          console.log('   insertId:', result[0].insertId);
+          console.log('   warningStatus:', result[0].warningStatus);
         } catch (insertError) {
-          console.error('❌ ERROR al guardar tokens en BD:', insertError.message);
+          console.error('❌ ERROR COMPLETO AL GUARDAR TOKENS:');
+          console.error('   Mensaje:', insertError.message);
           console.error('   SQL Error Code:', insertError.code);
           console.error('   SQL State:', insertError.sqlState);
           console.error('   SQL Message:', insertError.sqlMessage);
+          console.error('   Stack:', insertError.stack);
           logger.writeLog('❌ ERROR CRÍTICO en INSERT de tokens', {
             error: insertError.message,
             code: insertError.code,
             sqlState: insertError.sqlState,
             sqlMessage: insertError.sqlMessage,
+            stack: insertError.stack,
             userId: user.id
           });
           // NO lanzar el error para que el usuario al menos pueda autenticarse
         }
       } else {
-        console.log('⚠️ NO se guardaron tokens porque:');
-        if (!db) console.log('   - No hay conexión a BD');
-        if (!user.id) console.log('   - No hay user.id');
-        if (!googleTokens) console.log('   - No hay tokens de Google (probablemente login con ID Token)');
+        console.log('⚠️ NO SE GUARDARON TOKENS - ANÁLISIS DETALLADO:');
+        console.log('   db existe?:', !!db);
+        console.log('   user.id existe?:', !!user?.id, '- valor:', user?.id);
+        console.log('   googleTokens existe?:', !!googleTokens);
+        if (!db) console.log('   ❌ No hay conexión a BD');
+        if (!user?.id) console.log('   ❌ No hay user.id');
+        if (!googleTokens) console.log('   ❌ No hay tokens de Google (probablemente login con ID Token simple)');
       }
 
       if (db && user.id) {
