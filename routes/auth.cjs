@@ -2,6 +2,7 @@ const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const dbModule = require('../db-connection.cjs');
 
 dotenv.config();
 
@@ -191,6 +192,9 @@ const createAuthRoutes = (db) => {
 
   // Obtener URL de autorización con scopes de Calendar
   router.get('/google/auth-url', (req, res) => {
+    // OBTENER DB DEL MÓDULO COMPARTIDO (por si se necesita)
+    const db = dbModule.getConnection();
+    
     try {
       console.log('📍 Generando URL de autorización OAuth');
       console.log('   CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ No configurado');
@@ -234,6 +238,10 @@ const createAuthRoutes = (db) => {
 
   // Login con Google (soporta tanto ID Token como Code Flow)
   router.post('/google', async (req, res) => {
+    // OBTENER DB DEL MÓDULO COMPARTIDO
+    const db = dbModule.getConnection();
+    console.log('🔍 DB obtenida del módulo compartido:', !!db);
+    
     // Crear logger si está disponible
     let logger;
     try {

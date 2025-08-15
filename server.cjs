@@ -176,6 +176,10 @@ async function initDatabase() {
     useDatabase = true;
     console.log('✅ Base de datos conectada y tablas creadas');
     
+    // Establecer conexión en el módulo compartido
+    dbModule.setConnection(connection);
+    console.log('🔗 Conexión establecida en módulo compartido');
+    
     // Crear modos por defecto si no existen
     await createDefaultModes(connection);
   } catch (error) {
@@ -1514,6 +1518,7 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
 // Importar y configurar rutas de autenticación
 const createAuthRoutes = require('./routes/auth.cjs');
 const { optionalAuth } = require('./middleware/auth.cjs');
+const dbModule = require('./db-connection.cjs');
 
 // Endpoint de debug para verificar configuración
 app.get('/api/auth/config-check', (req, res) => {
