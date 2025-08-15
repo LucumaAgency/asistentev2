@@ -1,3 +1,3 @@
-Force rebuild for v3.21
-Date: 2025-01-14 23:30
-Changes: SOLUCIÓN DEFINITIVA - DB mediante módulo compartido
+Force rebuild for v3.22
+Date: 2025-01-14 23:45
+Changes: Fix Calendar - BD disponible para middleware de Calendar

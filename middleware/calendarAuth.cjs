@@ -31,11 +31,31 @@ const calendarAuth = async (req, res, next) => {
 
     // Si no hay DB, continuar sin tokens de Calendar
     if (!req.db) {
-      console.log('⚠️ No hay conexión a BD, continuando sin tokens de Calendar');
-      req.calendarService = new GoogleCalendarService();
-      req.userId = userId;
-      req.userEmail = decoded.email;
-      return next();
+      console.log('❌ ERROR CRÍTICO: No hay conexión a BD en calendarAuth');
+      console.log('   req.db:', req.db);
+      console.log('   userId:', userId);
+      
+      // Intentar obtener DB del módulo compartido como fallback
+      try {
+        const dbModule = require('../db-connection.cjs');
+        const dbConnection = dbModule.getConnection();
+        if (dbConnection) {
+          console.log('✅ BD obtenida del módulo compartido');
+          req.db = dbConnection;
+        } else {
+          console.log('❌ Módulo compartido tampoco tiene BD');
+          return res.status(503).json({ 
+            error: 'Servicio de Calendar no disponible - BD no conectada',
+            details: 'La base de datos no está disponible'
+          });
+        }
+      } catch (e) {
+        console.error('❌ Error obteniendo BD del módulo:', e.message);
+        return res.status(503).json({ 
+          error: 'Servicio de Calendar no disponible',
+          details: e.message
+        });
+      }
     }
 
     // Buscar tokens de Google Calendar en la BD

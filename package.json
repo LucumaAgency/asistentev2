@@ -1,6 +1,6 @@
 {
   "name": "ai-assistant-plesk",
-  "version": "3.21.0",
+  "version": "3.22.0",
   "description": "AI Assistant Web Application with Voice Support",
   "main": "server.js",
   "type": "module",
