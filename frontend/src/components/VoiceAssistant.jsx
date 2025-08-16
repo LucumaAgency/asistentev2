@@ -243,10 +243,38 @@ const VoiceAssistant = () => {
     }
   };
 
+  const cleanTextForSpeech = (text) => {
+    // Remover enlaces Markdown [texto](url)
+    let cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    
+    // Remover emojis comunes
+    cleanText = cleanText.replace(/[📹🗓️✅📅🎯💡⚠️ℹ️]/g, '');
+    
+    // Remover URLs directas
+    cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, 'enlace disponible');
+    
+    // Remover caracteres especiales de Markdown
+    cleanText = cleanText.replace(/[*_~`#]/g, '');
+    
+    // Remover saltos de línea múltiples
+    cleanText = cleanText.replace(/\n+/g, '. ');
+    
+    // Limpiar espacios extras
+    cleanText = cleanText.replace(/\s+/g, ' ').trim();
+    
+    console.log('Texto original:', text);
+    console.log('Texto limpio para voz:', cleanText);
+    
+    return cleanText;
+  };
+
   const speakResponse = (text) => {
     if ('speechSynthesis' in window) {
+      // Limpiar el texto antes de sintetizar
+      const cleanText = cleanTextForSpeech(text);
+      
       setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = 'es-ES';
       utterance.rate = 1;
       utterance.pitch = 1;
