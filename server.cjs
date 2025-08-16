@@ -1731,26 +1731,36 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
         console.log('❌ Modo Calendar no encontrado');
       }
       
-      // 4. Verificar sesión de chat activa
-      // Las conversaciones no tienen user_id directo, buscar la última sesión
-      const [sessions] = await db.execute(
-        'SELECT cs.*, c.created_at FROM chat_sessions cs ' +
-        'JOIN conversations c ON cs.conversation_id = c.id ' +
-        'ORDER BY c.created_at DESC LIMIT 1'
+      // 4. Verificar sesiones de chat
+      // Buscar TODAS las sesiones para debug
+      const [allSessions] = await db.execute(
+        'SELECT chat_id, mode_id, title, created_at FROM chat_sessions ORDER BY created_at DESC LIMIT 5'
       );
       
-      if (sessions && sessions.length > 0) {
+      // Buscar sesión específica de calendar
+      const [calendarSessions] = await db.execute(
+        'SELECT * FROM chat_sessions WHERE mode_id = "calendar" ORDER BY created_at DESC LIMIT 1'
+      );
+      
+      debugInfo.allRecentSessions = allSessions.map(s => ({
+        chatId: s.chat_id,
+        modeId: s.mode_id,
+        title: s.title
+      }));
+      
+      if (calendarSessions && calendarSessions.length > 0) {
         debugInfo.chatSession = {
           exists: true,
-          conversationId: sessions[0].conversation_id,
-          modeId: sessions[0].mode_id,
-          isCalendarMode: sessions[0].mode_id === 'calendar'
+          chatId: calendarSessions[0].chat_id,
+          modeId: calendarSessions[0].mode_id,
+          title: calendarSessions[0].title,
+          isCalendarMode: calendarSessions[0].mode_id === 'calendar'
         };
-        console.log('✅ Sesión de chat:', debugInfo.chatSession);
+        console.log('✅ Sesión de chat Calendar encontrada:', debugInfo.chatSession);
       } else {
         debugInfo.chatSession = { exists: false };
-        debugInfo.errors.push('No hay sesión de chat activa');
-        console.log('❌ No hay sesión de chat');
+        debugInfo.errors.push('No hay sesión de chat en modo Calendar');
+        console.log('❌ No hay sesión de chat en modo Calendar');
       }
     }
     
