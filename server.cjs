@@ -1627,7 +1627,7 @@ app.get('/api/debug/calendar-tokens', async (req, res) => {
     }
     
     // Obtener todos los usuarios con tokens
-    const [usersWithTokens] = await db.promise().query(
+    const [usersWithTokens] = await db.execute(
       'SELECT u.id, u.email, ut.service, ut.access_token IS NOT NULL as has_access, ' +
       'ut.refresh_token IS NOT NULL as has_refresh, ut.expires_at ' +
       'FROM users u ' +
@@ -1635,7 +1635,7 @@ app.get('/api/debug/calendar-tokens', async (req, res) => {
     );
     
     // Obtener modo Calendar
-    const [calendarMode] = await db.promise().query(
+    const [calendarMode] = await db.execute(
       'SELECT * FROM modes WHERE mode_id = "calendar"'
     );
     
@@ -1692,7 +1692,7 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
     
     // 2. Verificar tokens de Calendar
     if (useDatabase && db) {
-      const [tokens] = await db.promise().query(
+      const [tokens] = await db.execute(
         'SELECT * FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
         [userId]
       );
@@ -1713,7 +1713,7 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
       }
       
       // 3. Verificar modo Calendar
-      const [modes] = await db.promise().query(
+      const [modes] = await db.execute(
         'SELECT * FROM modes WHERE mode_id = "calendar"'
       );
       
@@ -1732,7 +1732,7 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
       }
       
       // 4. Verificar sesión de chat activa
-      const [sessions] = await db.promise().query(
+      const [sessions] = await db.execute(
         'SELECT cs.*, c.created_at FROM chat_sessions cs ' +
         'JOIN conversations c ON cs.conversation_id = c.id ' +
         'WHERE c.user_id = ? ORDER BY c.created_at DESC LIMIT 1',
