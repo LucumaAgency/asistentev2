@@ -594,57 +594,51 @@ function App() {
       
       <div className="app">
         <header className="header">
-          <button 
-            className="menu-toggle"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          >
-            ☰
-          </button>
-          <div>
-            <h1>Asistente IA v3.39</h1>
-            <p>Modo: {currentMode?.name || 'General'}</p>
-          </div>
-          <button 
-            className="new-chat-button"
-            onClick={handleNewChat}
-            title="Nuevo chat"
-          >
-            + Nuevo Chat
-          </button>
-          {isAuthenticated && (
+          <div className="header-row-1">
             <button 
-              className="calendar-button"
-              onClick={() => setShowCalendarModal(true)}
-              title="Ver eventos de Calendar"
+              className="menu-toggle"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             >
-              📅 Calendar
+              ☰
             </button>
-          )}
-          <button 
-            className="voice-assistant-button"
-            onClick={() => setShowVoiceAssistant(true)}
-            title="Asistente de voz"
-          >
-            🎤 <span>Voz</span>
-          </button>
-          <div className="user-menu">
+            <div className="header-title">
+              <h1>Asistente IA v3.42</h1>
+              <p>Modo: {currentMode?.name || 'General'}</p>
+            </div>
             {user ? (
-              <div className="user-info">
-                {user.picture && (
-                  <img src={user.picture} alt={user.name} className="user-avatar" />
-                )}
-                <div className="user-details">
-                  <span className="user-name">{user.name}</span>
-                </div>
-                <button onClick={handleLogout} className="logout-button">
-                  Salir
-                </button>
-              </div>
+              <button onClick={handleLogout} className="logout-button">
+                Salir
+              </button>
             ) : (
               <button onClick={() => setShowLogin(true)} className="login-button">
                 Iniciar sesión
               </button>
             )}
+          </div>
+          <div className="header-row-2">
+            <button 
+              className="new-chat-button"
+              onClick={handleNewChat}
+              title="Nuevo chat"
+            >
+              + Nuevo Chat
+            </button>
+            {isAuthenticated && (
+              <button 
+                className="calendar-button"
+                onClick={() => setShowCalendarModal(true)}
+                title="Ver eventos de Calendar"
+              >
+                📅 <span>Calendar</span>
+              </button>
+            )}
+            <button 
+              className="voice-assistant-button"
+              onClick={() => setShowVoiceAssistant(true)}
+              title="Asistente de voz"
+            >
+              🎤 <span>Voz</span>
+            </button>
           </div>
         </header>
 

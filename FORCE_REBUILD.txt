@@ -1,3 +1,3 @@
-Force rebuild for v3.41
-Date: 2025-08-16 19:00
-Changes: Mejorar calidad de síntesis de voz y reducir sonido robótico
+Force rebuild for v3.42
+Date: 2025-08-16 19:15
+Changes: Mejorar layout móvil del header y quitar foto de perfil
