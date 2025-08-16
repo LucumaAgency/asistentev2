@@ -1732,11 +1732,11 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
       }
       
       // 4. Verificar sesión de chat activa
+      // Las conversaciones no tienen user_id directo, buscar la última sesión
       const [sessions] = await db.execute(
         'SELECT cs.*, c.created_at FROM chat_sessions cs ' +
         'JOIN conversations c ON cs.conversation_id = c.id ' +
-        'WHERE c.user_id = ? ORDER BY c.created_at DESC LIMIT 1',
-        [userId]
+        'ORDER BY c.created_at DESC LIMIT 1'
       );
       
       if (sessions && sessions.length > 0) {
