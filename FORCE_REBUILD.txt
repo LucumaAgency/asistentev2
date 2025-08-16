@@ -1,3 +1,0 @@
-Force rebuild for v3.28
-Date: 2025-01-15 02:00
-Changes: FIX - Eventos de Calendar ahora se muestran correctamente en UI

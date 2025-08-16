@@ -355,9 +355,14 @@ const calendarFunctions = {
       });
       
       console.log('📅 FUNCIÓN schedule_meeting llamada con parámetros:', JSON.stringify(params, null, 2));
-      console.log('🔑 Tokens disponibles:', {
+      console.log('🔑 DEBUG DETALLADO DE TOKENS:', {
         hasTokens: !!userTokens,
         hasAccessToken: !!(userTokens && userTokens.access_token),
+        hasRefreshToken: !!(userTokens && userTokens.refresh_token),
+        userId: userId,
+        tokenService: userTokens?.service,
+        tokenExpiresAt: userTokens?.expires_at,
+        isExpired: userTokens?.expires_at ? new Date(userTokens.expires_at) < new Date() : 'N/A',
         accessTokenPreview: userTokens?.access_token ? userTokens.access_token.substring(0, 30) + '...' : 'NO HAY TOKEN'
       });
       
@@ -888,9 +893,22 @@ app.post('/api/chat', async (req, res) => {
             result = calendarFunctions.get_current_datetime();
             break;
           case 'schedule_meeting':
-            console.log('🗓️ Ejecutando schedule_meeting con tokens:', userTokens ? 'Disponibles' : 'No disponibles');
+            console.log('🗓️ IA ejecutando schedule_meeting - DEBUG:', {
+              hasTokens: !!userTokens,
+              hasAccessToken: !!userTokens?.access_token,
+              userId: req.userId,
+              modeId: mode?.mode_id,
+              functionArgs: functionArgs,
+              tokenService: userTokens?.service
+            });
             result = await calendarFunctions.schedule_meeting(functionArgs, userTokens);
-            console.log('   Resultado:', result);
+            console.log('   ✅ Resultado de IA:', {
+              success: !!result.id,
+              eventId: result?.id,
+              eventTitle: result?.summary,
+              meetLink: result?.meetLink,
+              error: result?.error
+            });
             break;
           case 'check_availability':
             result = await calendarFunctions.check_availability(functionArgs, userTokens);
@@ -1590,9 +1608,6 @@ const createAuthRoutes = require('./routes/auth.cjs');
 const { optionalAuth } = require('./middleware/auth.cjs');
 const dbModule = require('./db-connection.cjs');
 
-// Agregar endpoint de test para Calendar IA
-const testCalendarRouter = require('./test-ai-calendar-status.cjs');
-app.use('/api/test', testCalendarRouter);
 
 // Endpoint de debug para verificar configuración
 app.get('/api/auth/config-check', (req, res) => {
@@ -1603,6 +1618,120 @@ app.get('/api/auth/config-check', (req, res) => {
     database: useDatabase ? 'Conectada' : 'No conectada',
     timestamp: new Date().toISOString()
   });
+});
+
+// Endpoint de debug específico para Calendar + IA
+app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
+  console.log('🔍 DEBUG CALENDAR-AI INICIADO');
+  
+  const debugInfo = {
+    timestamp: new Date().toISOString(),
+    user: null,
+    tokens: null,
+    calendarMode: null,
+    chatSession: null,
+    errors: []
+  };
+  
+  try {
+    // 1. Verificar usuario autenticado
+    const userId = req.userId;
+    debugInfo.user = {
+      id: userId,
+      authenticated: true
+    };
+    console.log('✅ Usuario autenticado:', userId);
+    
+    // 2. Verificar tokens de Calendar
+    if (useDatabase && db) {
+      const [tokens] = await db.promise().query(
+        'SELECT * FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
+        [userId]
+      );
+      
+      if (tokens && tokens.length > 0) {
+        debugInfo.tokens = {
+          exists: true,
+          hasAccessToken: !!tokens[0].access_token,
+          hasRefreshToken: !!tokens[0].refresh_token,
+          expiresAt: tokens[0].expires_at,
+          isExpired: tokens[0].expires_at ? new Date(tokens[0].expires_at) < new Date() : null
+        };
+        console.log('✅ Tokens encontrados:', debugInfo.tokens);
+      } else {
+        debugInfo.tokens = { exists: false };
+        debugInfo.errors.push('No hay tokens de Calendar guardados');
+        console.log('❌ No hay tokens de Calendar');
+      }
+      
+      // 3. Verificar modo Calendar
+      const [modes] = await db.promise().query(
+        'SELECT * FROM modes WHERE mode_id = "calendar"'
+      );
+      
+      if (modes && modes.length > 0) {
+        debugInfo.calendarMode = {
+          exists: true,
+          id: modes[0].id,
+          name: modes[0].name,
+          hasFunctions: modes[0].available_functions ? true : false
+        };
+        console.log('✅ Modo Calendar configurado');
+      } else {
+        debugInfo.calendarMode = { exists: false };
+        debugInfo.errors.push('Modo Calendar no existe en BD');
+        console.log('❌ Modo Calendar no encontrado');
+      }
+      
+      // 4. Verificar sesión de chat activa
+      const [sessions] = await db.promise().query(
+        'SELECT cs.*, c.created_at FROM chat_sessions cs ' +
+        'JOIN conversations c ON cs.conversation_id = c.id ' +
+        'WHERE c.user_id = ? ORDER BY c.created_at DESC LIMIT 1',
+        [userId]
+      );
+      
+      if (sessions && sessions.length > 0) {
+        debugInfo.chatSession = {
+          exists: true,
+          conversationId: sessions[0].conversation_id,
+          modeId: sessions[0].mode_id,
+          isCalendarMode: sessions[0].mode_id === 'calendar'
+        };
+        console.log('✅ Sesión de chat:', debugInfo.chatSession);
+      } else {
+        debugInfo.chatSession = { exists: false };
+        debugInfo.errors.push('No hay sesión de chat activa');
+        console.log('❌ No hay sesión de chat');
+      }
+    }
+    
+    // 5. Verificar funciones disponibles
+    debugInfo.functionsAvailable = {
+      schedule_meeting: typeof functions.schedule_meeting === 'function',
+      check_availability: typeof functions.check_availability === 'function',
+      list_events: typeof functions.list_events === 'function'
+    };
+    
+    // 6. Resumen del diagnóstico
+    debugInfo.summary = {
+      canUseCalendarAI: !!(
+        debugInfo.tokens?.exists && 
+        debugInfo.calendarMode?.exists && 
+        debugInfo.chatSession?.isCalendarMode
+      ),
+      issues: debugInfo.errors
+    };
+    
+    console.log('🔍 DEBUG COMPLETO:', JSON.stringify(debugInfo, null, 2));
+    
+    res.json(debugInfo);
+    
+  } catch (error) {
+    console.error('❌ Error en debug Calendar-AI:', error);
+    debugInfo.errors.push(error.message);
+    res.status(500).json(debugInfo);
+  }
 });
 
 // Función removida - ya no necesaria
