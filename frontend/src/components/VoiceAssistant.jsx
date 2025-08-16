@@ -729,10 +729,6 @@ const VoiceAssistant = () => {
         <button 
           className="exit-voice-button"
           onClick={handleExit}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            handleExit();
-          }}
           style={{
             position: 'absolute',
             top: '20px',
@@ -750,8 +746,7 @@ const VoiceAssistant = () => {
             gap: '8px',
             transition: 'all 0.3s ease',
             zIndex: 10,
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation'
+            WebkitTapHighlightColor: 'transparent'
           }}
           onMouseEnter={(e) => {
             e.target.style.background = '#5d8ffc';
@@ -770,10 +765,6 @@ const VoiceAssistant = () => {
       <button 
         className="voice-settings-button"
         onClick={() => setShowVoiceSelector(!showVoiceSelector)}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          setShowVoiceSelector(!showVoiceSelector);
-        }}
         style={{
           position: 'absolute',
           top: '20px',
@@ -792,8 +783,7 @@ const VoiceAssistant = () => {
           justifyContent: 'center',
           transition: 'all 0.3s ease',
           zIndex: 10,
-          WebkitTapHighlightColor: 'transparent',
-          touchAction: 'manipulation'
+          WebkitTapHighlightColor: 'transparent'
         }}
         title="Configurar voz"
       >
@@ -892,21 +882,11 @@ const VoiceAssistant = () => {
             {availableVoices
               .filter(voice => voice.lang.startsWith('es'))
               .sort((a, b) => {
-                // Ordenar por calidad (definida en loadVoices)
+                // Ordenar por calidad
                 const qualityA = a.name.toLowerCase().includes('neural') || a.name.toLowerCase().includes('natural') ? 2 : 
                                  !a.localService ? 1 : 0;
                 const qualityB = b.name.toLowerCase().includes('neural') || b.name.toLowerCase().includes('natural') ? 2 : 
                                  !b.localService ? 1 : 0;
-                // En iOS, priorizar ciertas voces conocidas
-                if (isIOS) {
-                  const iOSPriorityA = a.name.includes('Mónica') ? 10 : 
-                                       a.name.includes('Paulina') ? 9 : 0;
-                  const iOSPriorityB = b.name.includes('Mónica') ? 10 : 
-                                       b.name.includes('Paulina') ? 9 : 0;
-                  if (iOSPriorityA !== iOSPriorityB) {
-                    return iOSPriorityB - iOSPriorityA;
-                  }
-                }
                 return qualityB - qualityA;
               })
               .map(voice => {
@@ -1043,20 +1023,18 @@ const VoiceAssistant = () => {
       <div className="voice-content">
         <div 
           className={`voice-circle ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
-          onClick={(e) => {
+          onClick={() => {
             console.log('Click event triggered');
-            e.preventDefault();
-            e.stopPropagation();
             toggleListening(false);
+          }}
+          onTouchStart={(e) => {
+            console.log('Touch start event triggered');
+            e.preventDefault();
           }}
           onTouchEnd={(e) => {
             console.log('Touch end event triggered');
             e.preventDefault();
-            e.stopPropagation();
-            // Solo ejecutar si no fue un scroll
-            if (!e.touches || e.touches.length === 0) {
-              toggleListening(true);
-            }
+            toggleListening(true);
           }}
           style={{
             transform: `scale(${getCircleScale()})`,
