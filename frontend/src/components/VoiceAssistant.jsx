@@ -19,6 +19,7 @@ const VoiceAssistant = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(null);
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -62,8 +63,21 @@ const VoiceAssistant = () => {
       
       // Seleccionar una voz en español por defecto
       if (spanishVoices.length > 0) {
-        setSelectedVoice(spanishVoices[0]);
-        console.log(`Voz seleccionada por defecto: ${spanishVoices[0].name}`);
+        // Intentar encontrar una voz preferida o usar la primera
+        const preferredVoice = spanishVoices.find(v => 
+          v.name.toLowerCase().includes('google') || 
+          v.name.toLowerCase().includes('microsoft')
+        ) || spanishVoices[0];
+        
+        setSelectedVoice(preferredVoice);
+        console.log(`Voz seleccionada por defecto: ${preferredVoice.name}`);
+        
+        // Guardar en localStorage
+        localStorage.setItem('selectedVoiceName', preferredVoice.name);
+      } else if (voices.length > 0) {
+        // Si no hay voces en español, usar la primera disponible
+        setSelectedVoice(voices[0]);
+        console.log(`No hay voces en español, usando: ${voices[0].name}`);
       }
     };
 
@@ -299,8 +313,11 @@ const VoiceAssistant = () => {
           utterance.pitch = 1;
           utterance.volume = 1;
           
-          // En móviles, no usar voz específica, dejar que use la default
-          // porque algunas voces pueden no funcionar
+          // En móviles también intentar usar la voz seleccionada
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log(`📱 Usando voz en móvil: ${selectedVoice.name}`);
+          }
           
           utterance.onstart = () => {
             console.log('📱 Síntesis iniciada en móvil');
@@ -479,6 +496,20 @@ const VoiceAssistant = () => {
     window.location.reload();
   };
 
+  const handleVoiceChange = (voiceName) => {
+    const voice = availableVoices.find(v => v.name === voiceName);
+    if (voice) {
+      setSelectedVoice(voice);
+      localStorage.setItem('selectedVoiceName', voice.name);
+      console.log('Voz cambiada a:', voice.name);
+      
+      // Probar la nueva voz
+      const testText = 'Voz seleccionada';
+      speakResponse(testText);
+    }
+    setShowVoiceSelector(false);
+  };
+
   return (
     <div className="voice-assistant-container">
       {showExitButton && (
@@ -514,6 +545,165 @@ const VoiceAssistant = () => {
         >
           ← Volver al chat
         </button>
+      )}
+      
+      {/* Botón de configuración de voz */}
+      <button 
+        className="voice-settings-button"
+        onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          border: '2px solid #5d8ffc',
+          color: '#5d8ffc',
+          padding: '10px',
+          borderRadius: '50%',
+          cursor: 'pointer',
+          fontSize: '20px',
+          width: '45px',
+          height: '45px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+          zIndex: 10
+        }}
+        title="Configurar voz"
+      >
+        ⚙️
+      </button>
+      
+      {/* Modal de selector de voces */}
+      {showVoiceSelector && (
+        <div className="voice-selector-modal" style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'white',
+          borderRadius: '20px',
+          padding: '20px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+          zIndex: 1000,
+          maxWidth: '90%',
+          width: '400px',
+          maxHeight: '70vh',
+          overflow: 'auto'
+        }}>
+          <h3 style={{ 
+            marginTop: 0, 
+            color: '#333',
+            borderBottom: '2px solid #5d8ffc',
+            paddingBottom: '10px'
+          }}>
+            Seleccionar Voz 🔊
+          </h3>
+          
+          <div style={{ marginBottom: '15px', color: '#666', fontSize: '14px' }}>
+            Voz actual: <strong>{selectedVoice?.name || 'Ninguna'}</strong>
+          </div>
+          
+          {/* Voces en español */}
+          <div style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#5d8ffc', marginBottom: '10px' }}>Voces en Español 🇪🇸</h4>
+            {availableVoices
+              .filter(voice => voice.lang.startsWith('es'))
+              .map(voice => (
+                <button
+                  key={voice.name}
+                  onClick={() => handleVoiceChange(voice.name)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '10px',
+                    margin: '5px 0',
+                    background: selectedVoice?.name === voice.name ? '#5d8ffc' : '#f0f0f0',
+                    color: selectedVoice?.name === voice.name ? 'white' : '#333',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedVoice?.name !== voice.name) {
+                      e.target.style.background = '#e0e0e0';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedVoice?.name !== voice.name) {
+                      e.target.style.background = '#f0f0f0';
+                    }
+                  }}
+                >
+                  <div style={{ fontWeight: '500' }}>{voice.name}</div>
+                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                    {voice.lang} • {voice.localService ? 'Local' : 'En línea'}
+                  </div>
+                </button>
+              ))}
+          </div>
+          
+          {/* Otras voces */}
+          <div>
+            <h4 style={{ color: '#888', marginBottom: '10px' }}>Otros Idiomas 🌍</h4>
+            {availableVoices
+              .filter(voice => !voice.lang.startsWith('es'))
+              .map(voice => (
+                <button
+                  key={voice.name}
+                  onClick={() => handleVoiceChange(voice.name)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '10px',
+                    margin: '5px 0',
+                    background: selectedVoice?.name === voice.name ? '#5d8ffc' : '#f0f0f0',
+                    color: selectedVoice?.name === voice.name ? 'white' : '#333',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedVoice?.name !== voice.name) {
+                      e.target.style.background = '#e0e0e0';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedVoice?.name !== voice.name) {
+                      e.target.style.background = '#f0f0f0';
+                    }
+                  }}
+                >
+                  <div style={{ fontWeight: '500' }}>{voice.name}</div>
+                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                    {voice.lang} • {voice.localService ? 'Local' : 'En línea'}
+                  </div>
+                </button>
+              ))}
+          </div>
+          
+          <button
+            onClick={() => setShowVoiceSelector(false)}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              background: '#5d8ffc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              width: '100%',
+              fontWeight: '500'
+            }}
+          >
+            Cerrar
+          </button>
+        </div>
       )}
       <div className="voice-content">
         <div 
