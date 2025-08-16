@@ -1605,7 +1605,7 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
 
 // Importar y configurar rutas de autenticación
 const createAuthRoutes = require('./routes/auth.cjs');
-const { optionalAuth } = require('./middleware/auth.cjs');
+const { optionalAuth, authenticateToken } = require('./middleware/auth.cjs');
 const dbModule = require('./db-connection.cjs');
 
 
@@ -1635,7 +1635,12 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
   
   try {
     // 1. Verificar usuario autenticado
-    const userId = req.userId;
+    const userId = req.user?.id || req.user?.userId || req.userId;
+    
+    if (!userId) {
+      throw new Error('No se pudo obtener el ID del usuario autenticado');
+    }
+    
     debugInfo.user = {
       id: userId,
       authenticated: true
