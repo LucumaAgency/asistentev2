@@ -130,15 +130,22 @@ const VoiceAssistant = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      console.log('Enviando comando de voz:', text);
-      console.log('Session ID:', sessionIdRef.current);
-      
-      const response = await axios.post('/api/chat', {
+      const requestData = {
         message: text,
         session_id: sessionIdRef.current,
         mode_id: 'general',
-        context_enabled: false
-      }, { headers });
+        context_enabled: false,
+        conversation_history: []
+      };
+
+      console.log('=== VOICE ASSISTANT REQUEST ===');
+      console.log('Enviando comando de voz:', text);
+      console.log('Session ID:', sessionIdRef.current);
+      console.log('Request data:', requestData);
+      console.log('Headers:', headers);
+      console.log('================================');
+      
+      const response = await axios.post('/api/chat', requestData, { headers });
 
       console.log('Respuesta recibida:', response.data);
       
