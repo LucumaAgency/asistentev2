@@ -1,3 +1,3 @@
-Force rebuild: v3.19
-Date: 2025-08-16 17:18 UTC
-Purpose: Ensure GitHub Actions builds with latest changes
+Force rebuild for v3.29
+Date: 2025-08-16 17:27
+Changes: VoiceAssistant con círculo reactivo y corrección de errores 400
