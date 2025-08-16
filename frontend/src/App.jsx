@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
 import LoginWithCalendar from './components/LoginWithCalendar';
 import CalendarEvents from './components/CalendarEvents';
+import VoiceAssistant from './components/VoiceAssistant';
 import './App.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [hasCalendarAccess, setHasCalendarAccess] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -567,6 +569,10 @@ function App() {
     return <LoginWithCalendar onLoginSuccess={handleLoginSuccess} />;
   }
 
+  if (showVoiceAssistant) {
+    return <VoiceAssistant />;
+  }
+
   return (
     <div className="app-container">
       {/* Overlay para móviles cuando el sidebar está abierto */}
@@ -614,6 +620,22 @@ function App() {
               📅 Calendar
             </button>
           )}
+          <button 
+            className="voice-assistant-button"
+            onClick={() => setShowVoiceAssistant(true)}
+            title="Asistente de voz"
+            style={{
+              background: '#5d8ffc',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              marginLeft: '10px'
+            }}
+          >
+            🎤 Voz
+          </button>
           <div className="user-menu">
             {user ? (
               <div className="user-info">
