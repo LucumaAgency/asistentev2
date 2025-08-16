@@ -17,6 +17,8 @@ const VoiceAssistant = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(null);
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -34,6 +36,42 @@ const VoiceAssistant = () => {
     // Configurar axios con el token si existe
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Cargar voces disponibles
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      console.log('=== VOCES DISPONIBLES ===');
+      console.log(`Total de voces: ${voices.length}`);
+      
+      // Filtrar voces en español
+      const spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
+      console.log(`Voces en español: ${spanishVoices.length}`);
+      
+      spanishVoices.forEach(voice => {
+        console.log(`- ${voice.name} (${voice.lang}) ${voice.localService ? 'Local' : 'Remota'}`);
+      });
+      
+      // Mostrar todas las voces disponibles
+      console.log('\n=== TODAS LAS VOCES ===');
+      voices.forEach(voice => {
+        console.log(`- ${voice.name} (${voice.lang}) ${voice.localService ? 'Local' : 'Remota'}`);
+      });
+      
+      setAvailableVoices(voices);
+      
+      // Seleccionar una voz en español por defecto
+      if (spanishVoices.length > 0) {
+        setSelectedVoice(spanishVoices[0]);
+        console.log(`Voz seleccionada por defecto: ${spanishVoices[0].name}`);
+      }
+    };
+
+    // Las voces pueden cargarse asíncronamente
+    if (window.speechSynthesis.getVoices().length > 0) {
+      loadVoices();
+    } else {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
     }
     
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -182,24 +220,41 @@ const VoiceAssistant = () => {
       utterance.pitch = 1;
       utterance.volume = 1;
 
+      // Usar la voz seleccionada si está disponible
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log(`Usando voz: ${selectedVoice.name}`);
+      }
+
       utterance.onstart = () => {
         setIsSpeaking(true);
+        console.log('Iniciando síntesis de voz...');
       };
 
       utterance.onend = () => {
         setIsSpeaking(false);
+        console.log('Síntesis de voz completada');
         setTimeout(() => {
           startListening();
         }, 500);
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (event) => {
         setIsSpeaking(false);
         setError('Error al reproducir la respuesta');
+        console.error('Error en síntesis de voz:', event);
       };
 
       synthRef.current.cancel();
       synthRef.current.speak(utterance);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (synthRef.current && synthRef.current.speaking) {
+      console.log('Deteniendo síntesis de voz...');
+      synthRef.current.cancel();
+      setIsSpeaking(false);
     }
   };
 
@@ -217,9 +272,17 @@ const VoiceAssistant = () => {
   };
 
   const toggleListening = () => {
-    if (isListening) {
+    // Si está hablando, detener la síntesis de voz
+    if (isSpeaking) {
+      console.log('Deteniendo síntesis para escuchar...');
+      stopSpeaking();
+      // Esperar un poco antes de empezar a escuchar
+      setTimeout(() => {
+        startListening();
+      }, 100);
+    } else if (isListening) {
       stopListening();
-    } else if (!isSpeaking) {
+    } else {
       startListening();
     }
   };
