@@ -1,0 +1,3 @@
+Force rebuild: v3.19
+Date: 2025-08-16 17:18 UTC
+Purpose: Ensure GitHub Actions builds with latest changes
