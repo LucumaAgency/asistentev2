@@ -24,6 +24,7 @@ const VoiceAssistant = () => {
   const analyserRef = useRef(null);
   const dataArrayRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const sessionIdRef = useRef(`voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
     // Verificar si hay token de autenticación
@@ -130,11 +131,12 @@ const VoiceAssistant = () => {
       }
 
       console.log('Enviando comando de voz:', text);
+      console.log('Session ID:', sessionIdRef.current);
       
       const response = await axios.post('/api/chat', {
         message: text,
+        session_id: sessionIdRef.current,
         mode_id: 'general',
-        conversation_id: null,
         context_enabled: false
       }, { headers });
 
