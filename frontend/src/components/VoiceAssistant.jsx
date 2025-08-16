@@ -576,17 +576,21 @@ const VoiceAssistant = () => {
     }
   };
 
-  const toggleListening = async () => {
+  const toggleListening = async (fromTouch = false) => {
+    console.log(`🔍 toggleListening llamado (fromTouch: ${fromTouch})`);
+    
     // Verificar HTTPS primero
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
       console.error('❌ Se requiere HTTPS para acceder al micrófono');
       setError('Esta página requiere conexión segura (HTTPS). Por favor, accede desde https://');
+      alert('Se requiere HTTPS para usar el micrófono. Por favor, accede desde una conexión segura.');
       return;
     }
 
     // Verificar compatibilidad del navegador
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       setError('Tu navegador no soporta reconocimiento de voz. Prueba con Chrome o Safari.');
+      alert('Tu navegador no soporta reconocimiento de voz. Por favor, usa Chrome o Safari.');
       return;
     }
 
@@ -602,23 +606,30 @@ const VoiceAssistant = () => {
         startListening();
       }, 100);
     } else if (isListening) {
+      console.log('Deteniendo escucha...');
       stopListening();
     } else {
+      console.log('Iniciando proceso de escucha...');
       // Pedir permisos de micrófono explícitamente en móviles
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           console.log('📱 Solicitando permisos de micrófono en móvil...');
-          await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           console.log('✅ Permisos de micrófono concedidos');
+          // Detener el stream inmediatamente (solo queríamos los permisos)
+          stream.getTracks().forEach(track => track.stop());
         } catch (error) {
           console.error('❌ Error obteniendo permisos:', error);
           if (error.name === 'NotAllowedError') {
             setError('Por favor, permite el acceso al micrófono en la configuración de tu navegador.');
+            alert('Por favor, permite el acceso al micrófono para usar esta función.');
           } else if (error.name === 'NotFoundError') {
             setError('No se detectó micrófono en tu dispositivo.');
+            alert('No se encontró micrófono en tu dispositivo.');
           } else {
             setError('Error al acceder al micrófono. Verifica tu configuración.');
+            alert('Error al acceder al micrófono. Por favor, verifica tu configuración.');
           }
           return;
         }
@@ -669,6 +680,10 @@ const VoiceAssistant = () => {
         <button 
           className="exit-voice-button"
           onClick={handleExit}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            handleExit();
+          }}
           style={{
             position: 'absolute',
             top: '20px',
@@ -685,7 +700,9 @@ const VoiceAssistant = () => {
             alignItems: 'center',
             gap: '8px',
             transition: 'all 0.3s ease',
-            zIndex: 10
+            zIndex: 10,
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
           }}
           onMouseEnter={(e) => {
             e.target.style.background = '#5d8ffc';
@@ -704,6 +721,10 @@ const VoiceAssistant = () => {
       <button 
         className="voice-settings-button"
         onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          setShowVoiceSelector(!showVoiceSelector);
+        }}
         style={{
           position: 'absolute',
           top: '20px',
@@ -721,7 +742,9 @@ const VoiceAssistant = () => {
           alignItems: 'center',
           justifyContent: 'center',
           transition: 'all 0.3s ease',
-          zIndex: 10
+          zIndex: 10,
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation'
         }}
         title="Configurar voz"
       >
@@ -905,12 +928,30 @@ const VoiceAssistant = () => {
       <div className="voice-content">
         <div 
           className={`voice-circle ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
-          onClick={toggleListening}
+          onClick={(e) => {
+            console.log('Click event triggered');
+            e.preventDefault();
+            e.stopPropagation();
+            toggleListening(false);
+          }}
+          onTouchEnd={(e) => {
+            console.log('Touch end event triggered');
+            e.preventDefault();
+            e.stopPropagation();
+            // Solo ejecutar si no fue un scroll
+            if (!e.touches || e.touches.length === 0) {
+              toggleListening(true);
+            }
+          }}
           style={{
             transform: `scale(${getCircleScale()})`,
             boxShadow: isListening || isSpeaking 
               ? `0 0 ${30 + audioLevel * 50}px rgba(93, 143, 252, ${0.4 + audioLevel * 0.3})`
-              : '0 0 20px rgba(93, 143, 252, 0.3)'
+              : '0 0 20px rgba(93, 143, 252, 0.3)',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
           }}
         >
           <div className="pulse-ring"></div>

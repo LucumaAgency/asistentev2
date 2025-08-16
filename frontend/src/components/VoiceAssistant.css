@@ -28,6 +28,11 @@
   position: relative;
   transition: all 0.3s ease;
   box-shadow: 0 0 20px rgba(93, 143, 252, 0.3);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .voice-circle:hover {
@@ -186,5 +191,22 @@
   
   .instructions p {
     font-size: 1rem;
+  }
+  
+  /* Mejorar interacción táctil en móviles */
+  button {
+    min-height: 44px; /* Tamaño mínimo recomendado por Apple */
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .voice-assistant-container {
+    touch-action: pan-y; /* Permitir scroll vertical pero prevenir zoom */
+  }
+  
+  /* Prevenir selección de texto accidental */
+  * {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    user-select: none;
   }
 }
