@@ -149,11 +149,14 @@ const VoiceAssistant = () => {
 
       console.log('Respuesta recibida:', response.data);
       
-      if (response.data.success && response.data.response) {
+      if (response.data.success && response.data.message) {
+        speakResponse(response.data.message);
+      } else if (response.data.response) {
         speakResponse(response.data.response);
       } else if (response.data.reply) {
         speakResponse(response.data.reply);
       } else {
+        console.error('Formato de respuesta no reconocido:', response.data);
         speakResponse('No pude procesar tu solicitud.');
       }
     } catch (error) {
