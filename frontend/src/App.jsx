@@ -601,7 +601,7 @@ function App() {
             ☰
           </button>
           <div>
-            <h1>Asistente IA v3.36</h1>
+            <h1>Asistente IA v3.37</h1>
             <p>Modo: {currentMode?.name || 'General'}</p>
           </div>
           <button 
@@ -624,17 +624,8 @@ function App() {
             className="voice-assistant-button"
             onClick={() => setShowVoiceAssistant(true)}
             title="Asistente de voz"
-            style={{
-              background: '#5d8ffc',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              marginLeft: '10px'
-            }}
           >
-            🎤 Voz
+            🎤 <span>Voz</span>
           </button>
           <div className="user-menu">
             {user ? (

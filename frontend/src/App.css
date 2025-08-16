@@ -110,6 +110,33 @@ body {
   transform: translateY(0);
 }
 
+.voice-assistant-button {
+  background: linear-gradient(135deg, #5d8ffc 0%, #4a7fe8 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.voice-assistant-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(93, 143, 252, 0.3);
+  background: linear-gradient(135deg, #4a7fe8 0%, #3a6fd8 100%);
+}
+
+.voice-assistant-button:active {
+  transform: translateY(0);
+}
+
 .calendar-auth-button {
   background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
   color: white;
@@ -588,20 +615,40 @@ body {
     align-items: center;
     padding-bottom: 15px;
     margin-bottom: 20px;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
   
   .header > div {
     text-align: left;
     flex: 1;
+    min-width: 0; /* Permitir que el texto se comprima */
   }
 
   .header h1 {
     font-size: 1.5rem;
     margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .header p {
     font-size: 0.8rem;
+  }
+  
+  .new-chat-button {
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-left: 5px;
+    margin-right: 5px;
+  }
+  
+  .calendar-button,
+  .voice-assistant-button {
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-left: 5px;
   }
 
   .message-content {
@@ -716,9 +763,27 @@ body {
   }
   
   .new-chat-button {
+    display: none; /* Ocultar en móviles muy pequeños */
+  }
+  
+  .calendar-button {
     padding: 8px 12px;
     font-size: 12px;
-    margin-right: 5px;
+    margin-left: 5px;
+  }
+  
+  .calendar-button span {
+    display: none; /* Ocultar texto, solo mostrar emoji */
+  }
+  
+  .voice-assistant-button {
+    padding: 8px 12px;
+    font-size: 18px;
+    margin-left: 5px;
+  }
+  
+  .voice-assistant-button span {
+    display: none; /* Solo mostrar emoji en móviles */
   }
   
   .menu-toggle {
