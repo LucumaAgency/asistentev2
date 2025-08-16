@@ -21,6 +21,9 @@ const VoiceAssistant = () => {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [voiceQuality, setVoiceQuality] = useState('auto'); // 'auto', 'high', 'medium', 'low'
+  const [customVoiceName, setCustomVoiceName] = useState('');
+  const [isIOS, setIsIOS] = useState(false);
+  const [isChrome, setIsChrome] = useState(false);
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -31,6 +34,17 @@ const VoiceAssistant = () => {
   const sessionIdRef = useRef(`voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
+    // Detectar iOS y Chrome
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const chrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+    setIsIOS(iOS);
+    setIsChrome(chrome);
+    
+    if (iOS) {
+      console.log('🍎 Dispositivo iOS detectado');
+      console.log('🌐 Navegador Chrome:', chrome);
+    }
+    
     // Verificar si hay token de autenticación
     const token = localStorage.getItem('token');
     setIsAuthenticated(!!token);
@@ -90,13 +104,30 @@ const VoiceAssistant = () => {
       
       // Seleccionar una voz en español por defecto
       if (sortedSpanishVoices.length > 0) {
+        // En iOS, buscar voces específicas que suelen sonar mejor
+        let preferredVoice = null;
+        
+        if (iOS) {
+          // Voces preferidas para iOS en orden de preferencia
+          const iOSPreferredVoices = ['Mónica', 'Paulina', 'Jorge', 'Juan', 'Diego'];
+          for (const voiceName of iOSPreferredVoices) {
+            preferredVoice = sortedSpanishVoices.find(v => 
+              v.name.includes(voiceName)
+            );
+            if (preferredVoice) {
+              console.log(`🍎 Voz iOS preferida encontrada: ${preferredVoice.name}`);
+              break;
+            }
+          }
+        }
+        
         // Verificar si hay una voz guardada previamente
         const savedVoiceName = localStorage.getItem('selectedVoiceName');
         const savedVoice = savedVoiceName ? 
           sortedSpanishVoices.find(v => v.name === savedVoiceName) : null;
         
-        // Usar la voz guardada o la de mejor calidad disponible
-        const preferredVoice = savedVoice || sortedSpanishVoices[0];
+        // Usar: voz guardada > voz preferida iOS > mejor calidad disponible
+        preferredVoice = savedVoice || preferredVoice || sortedSpanishVoices[0];
         
         setSelectedVoice(preferredVoice);
         const quality = evaluateVoiceQuality(preferredVoice);
@@ -408,10 +439,18 @@ const VoiceAssistant = () => {
           const utterance = new SpeechSynthesisUtterance();
           utterance.text = cleanText;
           utterance.lang = 'es-ES';
-          // Ajustar parámetros para voz más natural
-          utterance.rate = 0.95; // Velocidad más natural (0.95 en vez de 0.9)
-          utterance.pitch = 1.05; // Tono ligeramente más alto para naturalidad
-          utterance.volume = 0.9; // Volumen ligeramente reducido para evitar distorsión
+          
+          // Parámetros optimizados para iOS
+          if (isIOS) {
+            utterance.rate = 1.0; // iOS funciona mejor con velocidad normal
+            utterance.pitch = 1.1; // Tono ligeramente más alto en iOS
+            utterance.volume = 0.85; // Volumen reducido para evitar distorsión en iOS
+            console.log('🍎 Usando parámetros optimizados para iOS');
+          } else {
+            utterance.rate = 0.95;
+            utterance.pitch = 1.05;
+            utterance.volume = 0.9;
+          }
           
           // En móviles también intentar usar la voz seleccionada
           if (selectedVoice) {
@@ -458,10 +497,20 @@ const VoiceAssistant = () => {
       setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'es-ES';
-        // Configuración optimizada para voces más naturales
-        utterance.rate = 0.95; // Velocidad natural (entre 0.9 y 1.0)
-        utterance.pitch = 1.05; // Tono ligeramente elevado para mayor naturalidad
-        utterance.volume = 0.9; // Volumen optimizado para evitar distorsión
+        
+        // Configuración optimizada según el dispositivo
+        if (isIOS) {
+          // Parámetros específicos para iOS
+          utterance.rate = 1.0;
+          utterance.pitch = 1.1;
+          utterance.volume = 0.85;
+          console.log('🍎 Usando configuración iOS para desktop');
+        } else {
+          // Parámetros estándar
+          utterance.rate = 0.95;
+          utterance.pitch = 1.05;
+          utterance.volume = 0.9;
+        }
 
         // Usar la voz seleccionada si está disponible
         if (selectedVoice) {
@@ -779,6 +828,62 @@ const VoiceAssistant = () => {
           
           <div style={{ marginBottom: '15px', color: '#666', fontSize: '14px' }}>
             Voz actual: <strong>{selectedVoice?.name || 'Ninguna'}</strong>
+            {isIOS && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
+                🍎 Dispositivo iOS detectado - Usando configuración optimizada
+              </div>
+            )}
+          </div>
+          
+          {/* Opción para ingresar voz manualmente */}
+          <div style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#888', marginBottom: '10px', fontSize: '14px' }}>
+              ✏️ Ingresa el nombre de una voz manualmente
+            </h4>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                value={customVoiceName}
+                onChange={(e) => setCustomVoiceName(e.target.value)}
+                placeholder="Ej: Mónica, Siri, Karen"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (customVoiceName.trim()) {
+                    const foundVoice = availableVoices.find(v => 
+                      v.name.toLowerCase().includes(customVoiceName.toLowerCase())
+                    );
+                    if (foundVoice) {
+                      handleVoiceChange(foundVoice.name);
+                      setCustomVoiceName('');
+                    } else {
+                      alert(`No se encontró la voz "${customVoiceName}". Revisa la lista de voces disponibles.`);
+                    }
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#5d8ffc',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Buscar
+              </button>
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '11px', color: '#999' }}>
+              Escribe parte del nombre de la voz que quieres usar
+            </div>
           </div>
           
           {/* Voces en español */}
@@ -792,6 +897,16 @@ const VoiceAssistant = () => {
                                  !a.localService ? 1 : 0;
                 const qualityB = b.name.toLowerCase().includes('neural') || b.name.toLowerCase().includes('natural') ? 2 : 
                                  !b.localService ? 1 : 0;
+                // En iOS, priorizar ciertas voces conocidas
+                if (isIOS) {
+                  const iOSPriorityA = a.name.includes('Mónica') ? 10 : 
+                                       a.name.includes('Paulina') ? 9 : 0;
+                  const iOSPriorityB = b.name.includes('Mónica') ? 10 : 
+                                       b.name.includes('Paulina') ? 9 : 0;
+                  if (iOSPriorityA !== iOSPriorityB) {
+                    return iOSPriorityB - iOSPriorityA;
+                  }
+                }
                 return qualityB - qualityA;
               })
               .map(voice => {
@@ -981,6 +1096,20 @@ const VoiceAssistant = () => {
         <div className="instructions">
           <p>Haz clic en el círculo para activar el asistente de voz</p>
           <p className="subtitle">Habla claramente y espera la respuesta</p>
+          {isIOS && isChrome && (
+            <div style={{
+              marginTop: '20px',
+              padding: '10px',
+              background: 'rgba(255, 165, 0, 0.1)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#666',
+              textAlign: 'center'
+            }}>
+              🍎 Chrome en iOS usa las voces del sistema.
+              Para mejor calidad, prueba Safari o ajusta las voces en Ajustes → Accesibilidad.
+            </div>
+          )}
         </div>
       </div>
     </div>
