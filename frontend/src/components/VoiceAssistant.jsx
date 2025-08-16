@@ -96,24 +96,55 @@ const VoiceAssistant = () => {
       recognitionRef.current.lang = 'es-ES';
 
       recognitionRef.current.onstart = () => {
+        console.log('🎤 Reconocimiento iniciado');
         setIsListening(true);
         setError(null);
-        startAudioVisualization();
+        // Solo iniciar visualización si no es móvil
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (!isMobile) {
+          startAudioVisualization();
+        }
       };
 
       recognitionRef.current.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
+        console.log('📝 Transcripción:', transcript);
         setTranscript(transcript);
         handleVoiceCommand(transcript);
       };
 
       recognitionRef.current.onerror = (event) => {
-        setError(`Error de reconocimiento: ${event.error}`);
+        console.error('❌ Error de reconocimiento:', event.error);
+        
+        // Mensajes de error específicos
+        let errorMessage = 'Error de reconocimiento';
+        switch(event.error) {
+          case 'no-speech':
+            errorMessage = 'No se detectó voz. Intenta hablar más cerca del micrófono.';
+            break;
+          case 'audio-capture':
+            errorMessage = 'No se pudo acceder al micrófono.';
+            break;
+          case 'not-allowed':
+            errorMessage = 'Permiso de micrófono denegado.';
+            break;
+          case 'network':
+            errorMessage = 'Error de conexión. Verifica tu internet.';
+            break;
+          case 'aborted':
+            errorMessage = 'Reconocimiento cancelado.';
+            break;
+          default:
+            errorMessage = `Error: ${event.error}`;
+        }
+        
+        setError(errorMessage);
         setIsListening(false);
         stopAudioVisualization();
       };
 
       recognitionRef.current.onend = () => {
+        console.log('🔚 Reconocimiento finalizado');
         setIsListening(false);
         stopAudioVisualization();
       };
@@ -133,7 +164,28 @@ const VoiceAssistant = () => {
 
   const startAudioVisualization = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Verificar si estamos en HTTPS (requerido para getUserMedia)
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        console.error('❌ Se requiere HTTPS para acceder al micrófono');
+        setError('Se requiere conexión segura (HTTPS)');
+        return;
+      }
+
+      // Verificar disponibilidad de getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('❌ getUserMedia no disponible');
+        setError('Tu navegador no soporta acceso al micrófono');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
       const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -152,8 +204,18 @@ const VoiceAssistant = () => {
       };
       updateAudioLevel();
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-      setError('No se pudo acceder al micrófono');
+      console.error('❌ Error accediendo al micrófono:', error);
+      
+      // Mensajes de error específicos
+      if (error.name === 'NotAllowedError') {
+        setError('Permiso de micrófono denegado. Por favor, permite el acceso al micrófono.');
+      } else if (error.name === 'NotFoundError') {
+        setError('No se encontró micrófono en tu dispositivo.');
+      } else if (error.name === 'NotReadableError') {
+        setError('El micrófono está siendo usado por otra aplicación.');
+      } else {
+        setError(`Error al acceder al micrófono: ${error.message}`);
+      }
     }
   };
 
@@ -431,12 +493,21 @@ const VoiceAssistant = () => {
   const startListening = () => {
     if (recognitionRef.current && !isListening && !isSpeaking) {
       setTranscript('');
+      setError(null); // Limpiar errores previos
       try {
         recognitionRef.current.start();
         console.log('🎤 Iniciando escucha...');
       } catch (error) {
         console.error('Error al iniciar reconocimiento:', error);
-        setError('Error al iniciar el micrófono');
+        
+        // Mensajes de error más específicos
+        if (error.name === 'InvalidStateError') {
+          setError('El reconocimiento ya está en curso. Espera un momento.');
+        } else if (error.message.includes('not-allowed')) {
+          setError('Permisos de micrófono denegados. Verifica la configuración.');
+        } else {
+          setError('Error al iniciar el micrófono. Intenta nuevamente.');
+        }
       }
     } else {
       console.log('No se puede iniciar escucha:', {
@@ -466,7 +537,20 @@ const VoiceAssistant = () => {
     }
   };
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
+    // Verificar HTTPS primero
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      console.error('❌ Se requiere HTTPS para acceder al micrófono');
+      setError('Esta página requiere conexión segura (HTTPS). Por favor, accede desde https://');
+      return;
+    }
+
+    // Verificar compatibilidad del navegador
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      setError('Tu navegador no soporta reconocimiento de voz. Prueba con Chrome o Safari.');
+      return;
+    }
+
     // Inicializar síntesis en móviles si es la primera vez
     initializeMobileSpeech();
     
@@ -481,6 +565,25 @@ const VoiceAssistant = () => {
     } else if (isListening) {
       stopListening();
     } else {
+      // Pedir permisos de micrófono explícitamente en móviles
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          console.log('📱 Solicitando permisos de micrófono en móvil...');
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          console.log('✅ Permisos de micrófono concedidos');
+        } catch (error) {
+          console.error('❌ Error obteniendo permisos:', error);
+          if (error.name === 'NotAllowedError') {
+            setError('Por favor, permite el acceso al micrófono en la configuración de tu navegador.');
+          } else if (error.name === 'NotFoundError') {
+            setError('No se detectó micrófono en tu dispositivo.');
+          } else {
+            setError('Error al acceder al micrófono. Verifica tu configuración.');
+          }
+          return;
+        }
+      }
       startListening();
     }
   };
