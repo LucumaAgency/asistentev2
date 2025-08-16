@@ -346,6 +346,9 @@ const calendarFunctions = {
   },
   
   schedule_meeting: async (params, userTokens) => {
+    const logger = new Logger();
+    logger.writeLog('📅 INICIO schedule_meeting con params:', params);
+    
     try {
       logger.logCalendarEvent('🎯 SCHEDULE_MEETING_CALLED', {
         params: params,
@@ -373,17 +376,40 @@ const calendarFunctions = {
         logger.writeLog('   Fecha:', params.date);
         logger.writeLog('   Hora:', params.time);
         
+        // Validar que calendarService existe
+        if (!calendarService) {
+          throw new Error('calendarService no está inicializado');
+        }
+        
+        logger.writeLog('🔧 Configurando credenciales en calendarService');
         calendarService.setCredentials(userTokens);
         
-        const result = await calendarService.createEvent({
+        logger.writeLog('📝 Llamando a createEvent con parámetros:', {
           title: params.title,
           date: params.date,
           time: params.time,
-          duration: params.duration || 30,
-          attendees: params.attendees || [],
-          description: params.description || '',
-          add_meet: params.add_meet !== false // Por defecto agregar Google Meet
+          duration: params.duration || 30
         });
+        
+        let result;
+        try {
+          result = await calendarService.createEvent({
+            title: params.title,
+            date: params.date,
+            time: params.time,
+            duration: params.duration || 30,
+            attendees: params.attendees || [],
+            description: params.description || '',
+            add_meet: params.add_meet !== false // Por defecto agregar Google Meet
+          });
+        } catch (createEventError) {
+          logger.writeLog('❌ ERROR en calendarService.createEvent:', {
+            message: createEventError.message,
+            stack: createEventError.stack,
+            code: createEventError.code
+          });
+          throw createEventError;
+        }
         
         console.log('🎉 EVENTO CREADO EXITOSAMENTE:', result);
         logger.writeLog('✅ EVENTO CREADO EN GOOGLE CALENDAR', {
@@ -878,11 +904,19 @@ app.post('/api/chat', async (req, res) => {
     // Manejar function calling si el modelo quiere usar herramientas
     if (completion.choices[0].message.tool_calls) {
       console.log('🛠️ El modelo quiere usar herramientas');
-      console.log('📊 Verificación de funciones disponibles:', {
+      
+      // Logging detallado a archivo
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
         calendarFunctionsExists: typeof calendarFunctions === 'object',
         hasScheduleMeeting: typeof calendarFunctions?.schedule_meeting === 'function',
-        functionsAvailable: Object.keys(calendarFunctions || {})
-      });
+        functionsAvailable: Object.keys(calendarFunctions || {}),
+        toolCallsCount: completion.choices[0].message.tool_calls?.length || 0
+      };
+      
+      logger.writeLog('📊 VERIFICACIÓN DE FUNCIONES:', debugInfo);
+      console.log('📊 Verificación de funciones disponibles:', debugInfo);
+      
       const toolCalls = completion.choices[0].message.tool_calls;
       const toolResults = [];
       
@@ -898,22 +932,48 @@ app.post('/api/chat', async (req, res) => {
             result = calendarFunctions.get_current_datetime();
             break;
           case 'schedule_meeting':
-            console.log('🗓️ IA ejecutando schedule_meeting - DEBUG:', {
-              hasTokens: !!userTokens,
-              hasAccessToken: !!userTokens?.access_token,
-              userId: req.userId,
-              modeId: mode?.mode_id,
-              functionArgs: functionArgs,
-              tokenService: userTokens?.service
-            });
-            result = await calendarFunctions.schedule_meeting(functionArgs, userTokens);
-            console.log('   ✅ Resultado de IA:', {
-              success: !!result.id,
-              eventId: result?.id,
-              eventTitle: result?.summary,
-              meetLink: result?.meetLink,
-              error: result?.error
-            });
+            try {
+              const scheduleDebug = {
+                hasTokens: !!userTokens,
+                hasAccessToken: !!userTokens?.access_token,
+                userId: req.userId,
+                modeId: mode?.mode_id,
+                functionArgs: functionArgs,
+                tokenService: userTokens?.service
+              };
+              
+              logger.writeLog('🗓️ IA EJECUTANDO schedule_meeting:', scheduleDebug);
+              console.log('🗓️ IA ejecutando schedule_meeting - DEBUG:', scheduleDebug);
+              
+              // Validar que la función existe antes de llamarla
+              if (typeof calendarFunctions.schedule_meeting !== 'function') {
+                throw new Error('schedule_meeting function not found');
+              }
+              
+              result = await calendarFunctions.schedule_meeting(functionArgs, userTokens);
+              
+              const resultDebug = {
+                success: !!result?.id,
+                eventId: result?.id,
+                eventTitle: result?.summary,
+                meetLink: result?.meetLink,
+                error: result?.error
+              };
+              
+              logger.writeLog('   ✅ RESULTADO DE IA:', resultDebug);
+              console.log('   ✅ Resultado de IA:', resultDebug);
+              
+            } catch (scheduleError) {
+              logger.writeLog('❌ ERROR EN schedule_meeting:', {
+                message: scheduleError.message,
+                stack: scheduleError.stack
+              });
+              console.error('❌ Error en schedule_meeting:', scheduleError);
+              result = {
+                error: scheduleError.message,
+                details: 'Error al agendar la reunión'
+              };
+            }
             break;
           case 'check_availability':
             result = await calendarFunctions.check_availability(functionArgs, userTokens);
@@ -975,13 +1035,25 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ ERROR EN CHAT - DETALLES COMPLETOS:', {
+    const errorDetails = {
+      timestamp: new Date().toISOString(),
       message: error.message,
       stack: error.stack,
       name: error.name,
       modeId: req.body?.mode_id,
-      hasUserTokens: !!userTokens
-    });
+      hasUserTokens: !!userTokens,
+      requestBody: {
+        hasMessage: !!req.body?.message,
+        sessionId: req.body?.session_id,
+        modeId: req.body?.mode_id
+      }
+    };
+    
+    // Guardar en archivo de log
+    logger.writeLog('❌ ERROR CRÍTICO EN CHAT:', errorDetails);
+    
+    // También en consola
+    console.error('❌ ERROR EN CHAT - DETALLES COMPLETOS:', errorDetails);
     res.status(500).json({ 
       error: 'Error procesando mensaje',
       details: error.message 
