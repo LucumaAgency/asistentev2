@@ -330,10 +330,16 @@ const calendarService = new GoogleCalendarService();
 const calendarFunctions = {
   get_current_datetime: () => {
     const now = new Date();
+    // Asegurar que usamos el año 2025 actual
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
     return {
-      date: now.toISOString().split('T')[0],
+      date: `${year}-${month}-${day}`,
       time: now.toTimeString().split(' ')[0].substring(0, 5),
       day_name: now.toLocaleDateString('es-ES', { weekday: 'long' }),
+      year: year,
       formatted: now.toLocaleDateString('es-ES', { 
         weekday: 'long', 
         year: 'numeric', 
@@ -341,11 +347,14 @@ const calendarFunctions = {
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      })
+      }),
+      current_year_info: `El año actual es ${year}. Usar este año para fechas futuras próximas.`
     };
   },
   
   schedule_meeting: async (params, userTokens) => {
+    // Crear instancia de Logger aquí
+    const Logger = require('./utils/logger.cjs');
     const logger = new Logger();
     logger.writeLog('📅 INICIO schedule_meeting con params:', params);
     
