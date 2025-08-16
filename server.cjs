@@ -376,7 +376,6 @@ const calendarFunctions = {
         hasTokens: !!userTokens,
         hasAccessToken: !!(userTokens && userTokens.access_token),
         hasRefreshToken: !!(userTokens && userTokens.refresh_token),
-        userId: userId,
         tokenService: userTokens?.service,
         tokenExpiresAt: userTokens?.expires_at,
         isExpired: userTokens?.expires_at ? new Date(userTokens.expires_at) < new Date() : 'N/A',
