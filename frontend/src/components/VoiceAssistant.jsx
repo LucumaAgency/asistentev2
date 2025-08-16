@@ -278,6 +278,58 @@ const VoiceAssistant = () => {
         return;
       }
       
+      // Detectar si es un dispositivo móvil
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      console.log('📱 Dispositivo móvil detectado:', isMobile);
+      
+      // En móviles, necesitamos un comportamiento especial
+      if (isMobile) {
+        // Cancelar y resetear completamente la síntesis
+        synthRef.current.cancel();
+        
+        // En iOS necesitamos un pequeño delay
+        const delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 250 : 100;
+        
+        setTimeout(() => {
+          // Crear una nueva instancia para móviles
+          const utterance = new SpeechSynthesisUtterance();
+          utterance.text = cleanText;
+          utterance.lang = 'es-ES';
+          utterance.rate = 0.9;
+          utterance.pitch = 1;
+          utterance.volume = 1;
+          
+          // En móviles, no usar voz específica, dejar que use la default
+          // porque algunas voces pueden no funcionar
+          
+          utterance.onstart = () => {
+            console.log('📱 Síntesis iniciada en móvil');
+            setIsSpeaking(true);
+          };
+          
+          utterance.onend = () => {
+            console.log('📱 Síntesis completada en móvil');
+            setIsSpeaking(false);
+            // No reiniciar automáticamente en móviles
+          };
+          
+          utterance.onerror = (event) => {
+            console.error('📱 Error en síntesis móvil:', event);
+            setIsSpeaking(false);
+          };
+          
+          try {
+            synthRef.current.speak(utterance);
+          } catch (error) {
+            console.error('📱 Error al hablar en móvil:', error);
+            setIsSpeaking(false);
+          }
+        }, delay);
+        
+        return;
+      }
+      
+      // Código original para desktop
       // Cancelar cualquier síntesis anterior
       if (synthRef.current.speaking) {
         synthRef.current.cancel();
@@ -384,7 +436,23 @@ const VoiceAssistant = () => {
     }
   };
 
+  const initializeMobileSpeech = () => {
+    // En móviles, necesitamos "despertar" la síntesis con una interacción del usuario
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile && window.speechSynthesis) {
+      console.log('📱 Inicializando síntesis de voz para móvil...');
+      // Crear un utterance vacío para inicializar
+      const initUtterance = new SpeechSynthesisUtterance('');
+      initUtterance.volume = 0;
+      synthRef.current.speak(initUtterance);
+      console.log('📱 Síntesis de voz inicializada');
+    }
+  };
+
   const toggleListening = () => {
+    // Inicializar síntesis en móviles si es la primera vez
+    initializeMobileSpeech();
+    
     // Si está hablando, detener la síntesis de voz
     if (isSpeaking) {
       console.log('Deteniendo síntesis para escuchar...');
