@@ -20,6 +20,7 @@ const VoiceAssistant = () => {
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const [voiceQuality, setVoiceQuality] = useState('auto'); // 'auto', 'high', 'medium', 'low'
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -39,6 +40,31 @@ const VoiceAssistant = () => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
+    // Función para evaluar la calidad de una voz
+    const evaluateVoiceQuality = (voice) => {
+      const name = voice.name.toLowerCase();
+      
+      // Voces de alta calidad (neurales/naturales)
+      if (name.includes('neural') || name.includes('natural') || 
+          name.includes('wavenet') || name.includes('premium')) {
+        return 3; // Alta calidad
+      }
+      
+      // Voces de servicios en línea (generalmente mejor calidad)
+      if (!voice.localService && (name.includes('google') || 
+          name.includes('microsoft') || name.includes('amazon'))) {
+        return 2; // Calidad media-alta
+      }
+      
+      // Voces remotas genéricas
+      if (!voice.localService) {
+        return 1; // Calidad media
+      }
+      
+      // Voces locales (pueden sonar más robóticas)
+      return 0; // Calidad básica
+    };
+
     // Cargar voces disponibles
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
@@ -49,28 +75,39 @@ const VoiceAssistant = () => {
       const spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
       console.log(`Voces en español: ${spanishVoices.length}`);
       
-      spanishVoices.forEach(voice => {
-        console.log(`- ${voice.name} (${voice.lang}) ${voice.localService ? 'Local' : 'Remota'}`);
+      // Ordenar voces por calidad
+      const sortedSpanishVoices = spanishVoices.sort((a, b) => {
+        return evaluateVoiceQuality(b) - evaluateVoiceQuality(a);
       });
       
-      // Mostrar todas las voces disponibles
-      console.log('\n=== TODAS LAS VOCES ===');
-      voices.forEach(voice => {
-        console.log(`- ${voice.name} (${voice.lang}) ${voice.localService ? 'Local' : 'Remota'}`);
+      sortedSpanishVoices.forEach(voice => {
+        const quality = evaluateVoiceQuality(voice);
+        const qualityLabel = ['Básica', 'Media', 'Media-Alta', 'Alta'][quality];
+        console.log(`- ${voice.name} (${voice.lang}) ${voice.localService ? 'Local' : 'Remota'} - Calidad: ${qualityLabel}`);
       });
       
       setAvailableVoices(voices);
       
       // Seleccionar una voz en español por defecto
-      if (spanishVoices.length > 0) {
-        // Intentar encontrar una voz preferida o usar la primera
-        const preferredVoice = spanishVoices.find(v => 
-          v.name.toLowerCase().includes('google') || 
-          v.name.toLowerCase().includes('microsoft')
-        ) || spanishVoices[0];
+      if (sortedSpanishVoices.length > 0) {
+        // Verificar si hay una voz guardada previamente
+        const savedVoiceName = localStorage.getItem('selectedVoiceName');
+        const savedVoice = savedVoiceName ? 
+          sortedSpanishVoices.find(v => v.name === savedVoiceName) : null;
+        
+        // Usar la voz guardada o la de mejor calidad disponible
+        const preferredVoice = savedVoice || sortedSpanishVoices[0];
         
         setSelectedVoice(preferredVoice);
-        console.log(`Voz seleccionada por defecto: ${preferredVoice.name}`);
+        const quality = evaluateVoiceQuality(preferredVoice);
+        const qualityLabel = ['Básica', 'Media', 'Media-Alta', 'Alta'][quality];
+        console.log(`Voz seleccionada: ${preferredVoice.name} (Calidad: ${qualityLabel})`);
+        
+        // Advertir si la voz es de baja calidad
+        if (quality === 0) {
+          console.warn('⚠️ La voz seleccionada es de calidad básica y puede sonar robótica.');
+          console.log('💡 Considera cambiar a una voz remota o premium desde el selector de voces.');
+        }
         
         // Guardar en localStorage
         localStorage.setItem('selectedVoiceName', preferredVoice.name);
@@ -371,9 +408,10 @@ const VoiceAssistant = () => {
           const utterance = new SpeechSynthesisUtterance();
           utterance.text = cleanText;
           utterance.lang = 'es-ES';
-          utterance.rate = 0.9;
-          utterance.pitch = 1;
-          utterance.volume = 1;
+          // Ajustar parámetros para voz más natural
+          utterance.rate = 0.95; // Velocidad más natural (0.95 en vez de 0.9)
+          utterance.pitch = 1.05; // Tono ligeramente más alto para naturalidad
+          utterance.volume = 0.9; // Volumen ligeramente reducido para evitar distorsión
           
           // En móviles también intentar usar la voz seleccionada
           if (selectedVoice) {
@@ -420,9 +458,10 @@ const VoiceAssistant = () => {
       setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'es-ES';
-        utterance.rate = 0.9; // Ligeramente más lento
-        utterance.pitch = 1;
-        utterance.volume = 1;
+        // Configuración optimizada para voces más naturales
+        utterance.rate = 0.95; // Velocidad natural (entre 0.9 y 1.0)
+        utterance.pitch = 1.05; // Tono ligeramente elevado para mayor naturalidad
+        utterance.volume = 0.9; // Volumen optimizado para evitar distorsión
 
         // Usar la voz seleccionada si está disponible
         if (selectedVoice) {
@@ -604,10 +643,21 @@ const VoiceAssistant = () => {
     if (voice) {
       setSelectedVoice(voice);
       localStorage.setItem('selectedVoiceName', voice.name);
-      console.log('Voz cambiada a:', voice.name);
       
-      // Probar la nueva voz
-      const testText = 'Voz seleccionada';
+      // Evaluar calidad de la voz
+      const isNeural = voice.name.toLowerCase().includes('neural') || 
+                       voice.name.toLowerCase().includes('natural');
+      const isOnline = !voice.localService;
+      
+      console.log('🎤 Voz cambiada a:', voice.name);
+      console.log('Calidad:', isNeural ? 'Premium (Neural/Natural)' : 
+                              isOnline ? 'En línea (Buena)' : 
+                              'Local (Básica)');
+      
+      // Probar la nueva voz con un mensaje apropiado
+      const testText = isNeural ? 'Excelente elección. Esta voz suena muy natural.' :
+                      isOnline ? 'Voz en línea seleccionada. Buena calidad.' :
+                      'Voz local seleccionada. Puede sonar más sintética.';
       speakResponse(testText);
     }
     setShowVoiceSelector(false);
@@ -713,40 +763,84 @@ const VoiceAssistant = () => {
             <h4 style={{ color: '#5d8ffc', marginBottom: '10px' }}>Voces en Español 🇪🇸</h4>
             {availableVoices
               .filter(voice => voice.lang.startsWith('es'))
-              .map(voice => (
-                <button
-                  key={voice.name}
-                  onClick={() => handleVoiceChange(voice.name)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '10px',
-                    margin: '5px 0',
-                    background: selectedVoice?.name === voice.name ? '#5d8ffc' : '#f0f0f0',
-                    color: selectedVoice?.name === voice.name ? 'white' : '#333',
-                    border: 'none',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedVoice?.name !== voice.name) {
-                      e.target.style.background = '#e0e0e0';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedVoice?.name !== voice.name) {
-                      e.target.style.background = '#f0f0f0';
-                    }
-                  }}
-                >
-                  <div style={{ fontWeight: '500' }}>{voice.name}</div>
-                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                    {voice.lang} • {voice.localService ? 'Local' : 'En línea'}
-                  </div>
-                </button>
-              ))}
+              .sort((a, b) => {
+                // Ordenar por calidad (definida en loadVoices)
+                const qualityA = a.name.toLowerCase().includes('neural') || a.name.toLowerCase().includes('natural') ? 2 : 
+                                 !a.localService ? 1 : 0;
+                const qualityB = b.name.toLowerCase().includes('neural') || b.name.toLowerCase().includes('natural') ? 2 : 
+                                 !b.localService ? 1 : 0;
+                return qualityB - qualityA;
+              })
+              .map(voice => {
+                const isNeural = voice.name.toLowerCase().includes('neural') || 
+                                 voice.name.toLowerCase().includes('natural') ||
+                                 voice.name.toLowerCase().includes('wavenet');
+                const isOnline = !voice.localService;
+                const qualityBadge = isNeural ? '🌟 Premium' : 
+                                    isOnline ? '✨ En línea' : 
+                                    '💻 Local';
+                const qualityColor = isNeural ? '#4CAF50' : 
+                                     isOnline ? '#2196F3' : 
+                                     '#9E9E9E';
+                
+                return (
+                  <button
+                    key={voice.name}
+                    onClick={() => handleVoiceChange(voice.name)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '12px',
+                      margin: '8px 0',
+                      background: selectedVoice?.name === voice.name ? '#5d8ffc' : '#f0f0f0',
+                      color: selectedVoice?.name === voice.name ? 'white' : '#333',
+                      border: isNeural ? '2px solid #4CAF50' : 'none',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedVoice?.name !== voice.name) {
+                        e.currentTarget.style.background = '#e0e0e0';
+                        e.currentTarget.style.transform = 'translateX(5px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedVoice?.name !== voice.name) {
+                        e.currentTarget.style.background = '#f0f0f0';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                      }
+                    }}
+                  >
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center' 
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                          {voice.name}
+                        </div>
+                        <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                          {voice.lang}
+                        </div>
+                      </div>
+                      <span style={{
+                        background: qualityColor,
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '500'
+                      }}>
+                        {qualityBadge}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
           </div>
           
           {/* Otras voces */}
