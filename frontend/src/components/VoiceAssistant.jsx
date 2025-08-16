@@ -273,40 +273,81 @@ const VoiceAssistant = () => {
       // Limpiar el texto antes de sintetizar
       const cleanText = cleanTextForSpeech(text);
       
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'es-ES';
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-
-      // Usar la voz seleccionada si está disponible
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        console.log(`Usando voz: ${selectedVoice.name}`);
+      if (!cleanText || cleanText.length === 0) {
+        console.error('Texto vacío después de limpiar');
+        return;
       }
+      
+      // Cancelar cualquier síntesis anterior
+      if (synthRef.current.speaking) {
+        synthRef.current.cancel();
+      }
+      
+      setIsSpeaking(true);
+      
+      // Pequeño delay para asegurar que el estado se actualice
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'es-ES';
+        utterance.rate = 0.9; // Ligeramente más lento
+        utterance.pitch = 1;
+        utterance.volume = 1;
 
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        console.log('Iniciando síntesis de voz...');
-      };
+        // Usar la voz seleccionada si está disponible
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+          console.log(`Usando voz: ${selectedVoice.name}`);
+        }
 
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        console.log('Síntesis de voz completada');
-        setTimeout(() => {
-          startListening();
-        }, 500);
-      };
+        utterance.onstart = () => {
+          console.log('✅ Síntesis de voz iniciada correctamente');
+          console.log('Texto a hablar:', cleanText.substring(0, 100) + '...');
+          setIsSpeaking(true);
+        };
 
-      utterance.onerror = (event) => {
-        setIsSpeaking(false);
-        setError('Error al reproducir la respuesta');
-        console.error('Error en síntesis de voz:', event);
-      };
+        utterance.onend = () => {
+          console.log('✅ Síntesis de voz completada');
+          setIsSpeaking(false);
+          // Esperar un poco más antes de volver a escuchar
+          setTimeout(() => {
+            if (!isSpeaking) {
+              startListening();
+            }
+          }, 1000);
+        };
 
-      synthRef.current.cancel();
-      synthRef.current.speak(utterance);
+        utterance.onerror = (event) => {
+          console.error('❌ Error en síntesis de voz:', event.error);
+          console.error('Detalles del error:', event);
+          setIsSpeaking(false);
+          setError(`Error de voz: ${event.error}`);
+          
+          // Reintentar con texto más simple si falla
+          if (event.error === 'text-too-long') {
+            const shortText = cleanText.substring(0, 200);
+            console.log('Reintentando con texto más corto:', shortText);
+            setTimeout(() => speakResponse(shortText), 500);
+          }
+        };
+
+        utterance.onpause = () => {
+          console.log('⏸️ Síntesis pausada');
+        };
+
+        utterance.onresume = () => {
+          console.log('▶️ Síntesis reanudada');
+        };
+
+        try {
+          synthRef.current.speak(utterance);
+          console.log('🔊 Utterance enviado a síntesis');
+        } catch (error) {
+          console.error('❌ Error al iniciar síntesis:', error);
+          setIsSpeaking(false);
+        }
+      }, 100);
+    } else {
+      console.error('❌ SpeechSynthesis no disponible');
     }
   };
 
@@ -321,7 +362,19 @@ const VoiceAssistant = () => {
   const startListening = () => {
     if (recognitionRef.current && !isListening && !isSpeaking) {
       setTranscript('');
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.start();
+        console.log('🎤 Iniciando escucha...');
+      } catch (error) {
+        console.error('Error al iniciar reconocimiento:', error);
+        setError('Error al iniciar el micrófono');
+      }
+    } else {
+      console.log('No se puede iniciar escucha:', {
+        hasRecognition: !!recognitionRef.current,
+        isListening,
+        isSpeaking
+      });
     }
   };
 
