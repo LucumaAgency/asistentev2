@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import './VoiceAssistant.css';
+
+// Configurar axios baseURL si no está configurado
+if (!axios.defaults.baseURL) {
+  axios.defaults.baseURL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : '';
+}
 
 const VoiceAssistant = () => {
   const [showExitButton, setShowExitButton] = useState(true);
@@ -8,6 +16,7 @@ const VoiceAssistant = () => {
   const [transcript, setTranscript] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -17,6 +26,15 @@ const VoiceAssistant = () => {
   const animationFrameRef = useRef(null);
 
   useEffect(() => {
+    // Verificar si hay token de autenticación
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+    
+    // Configurar axios con el token si existe
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
@@ -101,26 +119,45 @@ const VoiceAssistant = () => {
   const handleVoiceCommand = async (text) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          message: text,
-          mode_id: 'general',
-          conversation_id: null
-        })
-      });
+      
+      // Configurar headers con el token si existe
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-      if (!response.ok) throw new Error('Error en la respuesta del servidor');
+      console.log('Enviando comando de voz:', text);
+      
+      const response = await axios.post('/api/chat', {
+        message: text,
+        mode_id: 'general',
+        conversation_id: null,
+        context_enabled: false
+      }, { headers });
 
-      const data = await response.json();
-      speakResponse(data.response);
+      console.log('Respuesta recibida:', response.data);
+      
+      if (response.data.success && response.data.response) {
+        speakResponse(response.data.response);
+      } else if (response.data.reply) {
+        speakResponse(response.data.reply);
+      } else {
+        speakResponse('No pude procesar tu solicitud.');
+      }
     } catch (error) {
-      console.error('Error:', error);
-      speakResponse('Lo siento, hubo un error al procesar tu solicitud.');
+      console.error('Error en handleVoiceCommand:', error);
+      console.error('Detalles del error:', error.response?.data);
+      
+      if (error.response?.status === 401) {
+        speakResponse('Por favor, inicia sesión para usar el asistente de voz.');
+      } else if (error.response?.status === 400) {
+        speakResponse('Hubo un problema con tu solicitud. Por favor, intenta de nuevo.');
+      } else {
+        speakResponse('Lo siento, hubo un error al procesar tu solicitud.');
+      }
     }
   };
 
