@@ -1617,6 +1617,52 @@ app.get('/api/auth/config-check', (req, res) => {
   });
 });
 
+// Endpoint de debug simple para verificar tokens de Calendar
+app.get('/api/debug/calendar-tokens', async (req, res) => {
+  console.log('🔍 DEBUG CALENDAR TOKENS - Sin autenticación');
+  
+  try {
+    if (!useDatabase || !db) {
+      return res.json({ error: 'Base de datos no disponible' });
+    }
+    
+    // Obtener todos los usuarios con tokens
+    const [usersWithTokens] = await db.promise().query(
+      'SELECT u.id, u.email, ut.service, ut.access_token IS NOT NULL as has_access, ' +
+      'ut.refresh_token IS NOT NULL as has_refresh, ut.expires_at ' +
+      'FROM users u ' +
+      'LEFT JOIN user_tokens ut ON u.id = ut.user_id AND ut.service = "google_calendar"'
+    );
+    
+    // Obtener modo Calendar
+    const [calendarMode] = await db.promise().query(
+      'SELECT * FROM modes WHERE mode_id = "calendar"'
+    );
+    
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      usersWithTokens: usersWithTokens.map(u => ({
+        userId: u.id,
+        email: u.email,
+        hasTokens: u.has_access || u.has_refresh,
+        hasAccessToken: u.has_access,
+        hasRefreshToken: u.has_refresh,
+        tokenExpiresAt: u.expires_at,
+        isExpired: u.expires_at ? new Date(u.expires_at) < new Date() : null
+      })),
+      calendarModeExists: calendarMode.length > 0,
+      calendarMode: calendarMode[0] || null
+    };
+    
+    console.log('📊 Debug info:', JSON.stringify(debugInfo, null, 2));
+    res.json(debugInfo);
+    
+  } catch (error) {
+    console.error('❌ Error en debug tokens:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Endpoint de debug específico para Calendar + IA
 app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
   console.log('🔍 DEBUG CALENDAR-AI INICIADO');
