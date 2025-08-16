@@ -878,6 +878,11 @@ app.post('/api/chat', async (req, res) => {
     // Manejar function calling si el modelo quiere usar herramientas
     if (completion.choices[0].message.tool_calls) {
       console.log('🛠️ El modelo quiere usar herramientas');
+      console.log('📊 Verificación de funciones disponibles:', {
+        calendarFunctionsExists: typeof calendarFunctions === 'object',
+        hasScheduleMeeting: typeof calendarFunctions?.schedule_meeting === 'function',
+        functionsAvailable: Object.keys(calendarFunctions || {})
+      });
       const toolCalls = completion.choices[0].message.tool_calls;
       const toolResults = [];
       
@@ -970,7 +975,13 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en chat:', error);
+    console.error('❌ ERROR EN CHAT - DETALLES COMPLETOS:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      modeId: req.body?.mode_id,
+      hasUserTokens: !!userTokens
+    });
     res.status(500).json({ 
       error: 'Error procesando mensaje',
       details: error.message 
@@ -1766,9 +1777,9 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
     
     // 5. Verificar funciones disponibles
     debugInfo.functionsAvailable = {
-      schedule_meeting: typeof functions.schedule_meeting === 'function',
-      check_availability: typeof functions.check_availability === 'function',
-      list_events: typeof functions.list_events === 'function'
+      schedule_meeting: typeof calendarFunctions.schedule_meeting === 'function',
+      check_availability: typeof calendarFunctions.check_availability === 'function',
+      list_events: typeof calendarFunctions.list_events === 'function'
     };
     
     // 6. Resumen del diagnóstico
