@@ -168,16 +168,35 @@ const VoiceAssistant = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Detectar si el usuario quiere agendar algo
+      const calendarKeywords = [
+        'agendar', 'agenda', 'reunión', 'cita', 'evento', 'calendario', 
+        'programar', 'meet', 'meeting', 'mañana', 'próximo', 'próxima',
+        'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'
+      ];
+      
+      const textLower = text.toLowerCase();
+      const isCalendarRequest = calendarKeywords.some(keyword => textLower.includes(keyword));
+      
+      // Usar modo calendar si detectamos intención de agendar
+      const modeToUse = isCalendarRequest ? 'calendar' : 'general';
+      
+      if (isCalendarRequest && !token) {
+        speakResponse('Para agendar eventos necesitas iniciar sesión con tu cuenta de Google. Por favor, vuelve al chat principal e inicia sesión.');
+        return;
+      }
+
       const requestData = {
         message: text,
         session_id: sessionIdRef.current,
-        mode_id: 'general',
+        mode_id: modeToUse,
         context_enabled: false,
         conversation_history: []
       };
 
       console.log('=== VOICE ASSISTANT REQUEST ===');
       console.log('Enviando comando de voz:', text);
+      console.log('Modo detectado:', modeToUse);
       console.log('Session ID:', sessionIdRef.current);
       console.log('Request data:', requestData);
       console.log('Headers:', headers);
@@ -187,16 +206,29 @@ const VoiceAssistant = () => {
 
       console.log('Respuesta recibida:', response.data);
       
+      // Extraer el mensaje de respuesta
+      let messageToSpeak = '';
+      
       if (response.data.success && response.data.message) {
-        speakResponse(response.data.message);
+        messageToSpeak = response.data.message;
       } else if (response.data.response) {
-        speakResponse(response.data.response);
+        messageToSpeak = response.data.response;
       } else if (response.data.reply) {
-        speakResponse(response.data.reply);
+        messageToSpeak = response.data.reply;
       } else {
         console.error('Formato de respuesta no reconocido:', response.data);
-        speakResponse('No pude procesar tu solicitud.');
+        messageToSpeak = 'No pude procesar tu solicitud.';
       }
+      
+      // Si el modo es calendar y hay información adicional del evento
+      if (modeToUse === 'calendar' && response.data.eventDetails) {
+        console.log('Detalles del evento creado:', response.data.eventDetails);
+        if (response.data.eventDetails.meetLink) {
+          messageToSpeak += ` El enlace de Google Meet se ha enviado a tu correo.`;
+        }
+      }
+      
+      speakResponse(messageToSpeak);
     } catch (error) {
       console.error('Error en handleVoiceCommand:', error);
       console.error('Detalles del error:', error.response?.data);
