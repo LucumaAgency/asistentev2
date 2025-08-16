@@ -353,10 +353,15 @@ const calendarFunctions = {
   },
   
   schedule_meeting: async (params, userTokens) => {
-    // Crear instancia de Logger aquí
-    const Logger = require('./utils/logger.cjs');
-    const logger = new Logger();
+    // Logger ya es una instancia, no una clase
+    const logger = require('./utils/logger.cjs');
     logger.writeLog('📅 INICIO schedule_meeting con params:', params);
+    
+    // Validar y corregir el año si es 2023
+    if (params.date && params.date.startsWith('2023-')) {
+      params.date = params.date.replace('2023-', '2025-');
+      logger.writeLog('⚠️ Corrigiendo año de 2023 a 2025:', params.date);
+    }
     
     try {
       logger.logCalendarEvent('🎯 SCHEDULE_MEETING_CALLED', {
@@ -826,12 +831,12 @@ app.post('/api/chat', async (req, res) => {
           type: 'function',
           function: {
             name: 'schedule_meeting',
-            description: 'Agendar una reunión en Google Calendar',
+            description: 'Agendar una reunión en Google Calendar. IMPORTANTE: Estamos en 2025, usar año 2025 para fechas futuras.',
             parameters: {
               type: 'object',
               properties: {
                 title: { type: 'string', description: 'Título de la reunión' },
-                date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD' },
+                date: { type: 'string', description: 'Fecha en formato YYYY-MM-DD. Usar año 2025 para fechas de este año.' },
                 time: { type: 'string', description: 'Hora en formato HH:MM' },
                 duration: { type: 'number', description: 'Duración en minutos' },
                 attendees: { 
