@@ -647,7 +647,7 @@ app.post('/api/chat', async (req, res) => {
             logger.writeLog('🔎 Buscando tokens en BD para user_id:', realUserId);
             
             const [tokens] = await db.execute(
-              'SELECT access_token, refresh_token, token_type, expires_at FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
+              'SELECT access_token, refresh_token, expires_at, service FROM user_tokens WHERE user_id = ? AND service = "google_calendar"',
               [realUserId]
             );
             
@@ -662,13 +662,14 @@ app.post('/api/chat', async (req, res) => {
               userTokens = {
                 access_token: tokens[0].access_token,
                 refresh_token: tokens[0].refresh_token,
-                token_type: tokens[0].token_type,
+                token_type: 'Bearer', // La tabla no tiene token_type, usar Bearer por defecto
+                service: tokens[0].service,
                 expiry_date: tokens[0].expires_at ? new Date(tokens[0].expires_at).getTime() : null
               };
               logger.writeLog('✅ Tokens de Calendar obtenidos de la BD', {
                 hasAccessToken: !!userTokens.access_token,
                 hasRefreshToken: !!userTokens.refresh_token,
-                tokenType: userTokens.token_type
+                service: userTokens.service
               });
             } else {
               logger.writeLog('⚠️ No hay tokens de Calendar guardados para este usuario');
@@ -937,7 +938,7 @@ app.post('/api/chat', async (req, res) => {
                 hasTokens: !!userTokens,
                 hasAccessToken: !!userTokens?.access_token,
                 userId: req.userId,
-                modeId: mode?.mode_id,
+                modeId: req.body?.mode_id || 'unknown',
                 functionArgs: functionArgs,
                 tokenService: userTokens?.service
               };
