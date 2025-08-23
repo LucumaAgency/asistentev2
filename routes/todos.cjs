@@ -13,6 +13,10 @@ const setDatabase = (database) => {
 // Obtener todas las categorías del usuario
 router.get('/categories', authenticateToken, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Base de datos no disponible' });
+    }
+    
     const userId = req.user.id;
     
     const [categories] = await db.execute(
