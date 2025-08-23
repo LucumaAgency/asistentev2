@@ -273,6 +273,36 @@ router.post('/lists/:listId/items', authenticateToken, async (req, res) => {
   }
 });
 
+// Eliminar lista
+router.delete('/lists/:listId', authenticateToken, async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: 'Base de datos no disponible' });
+    }
+    
+    const userId = req.user.id;
+    const { listId } = req.params;
+    
+    // Verificar que la lista pertenece al usuario
+    const [lists] = await db.execute(
+      'SELECT id FROM todo_lists WHERE id = ? AND user_id = ?',
+      [listId, userId]
+    );
+    
+    if (lists.length === 0) {
+      return res.status(404).json({ error: 'Lista no encontrada' });
+    }
+    
+    // Eliminar la lista (los items se eliminarán en cascada)
+    await db.execute('DELETE FROM todo_lists WHERE id = ?', [listId]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error eliminando lista:', error);
+    res.status(500).json({ error: 'Error al eliminar lista' });
+  }
+});
+
 // Marcar item como completado/incompleto
 router.patch('/items/:itemId/toggle', authenticateToken, async (req, res) => {
   try {
