@@ -6,6 +6,8 @@ import Sidebar from './components/Sidebar';
 import LoginWithCalendar from './components/LoginWithCalendar';
 import CalendarEvents from './components/CalendarEvents';
 import VoiceAssistant from './components/VoiceAssistant';
+import ConversationsList from './components/ConversationsList';
+import TodoLists from './components/TodoLists';
 import './App.css';
 
 function App() {
@@ -28,6 +30,8 @@ function App() {
   const [hasCalendarAccess, setHasCalendarAccess] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
+  const [showConversations, setShowConversations] = useState(false);
+  const [voiceInputForTodos, setVoiceInputForTodos] = useState('');
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -174,10 +178,16 @@ function App() {
             console.error('Error restarting recognition:', err);
             setIsRecording(false);
           }
+        } else {
+          // Si estamos en modo todos y hay texto, procesarlo
+          if (currentMode?.id === 'todos' && inputMessage.trim()) {
+            setVoiceInputForTodos(inputMessage);
+            setInputMessage('');
+          }
         }
       };
     }
-  }, [isRecording]);
+  }, [isRecording, currentMode, inputMessage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -198,7 +208,11 @@ function App() {
 
   const loadConversation = async (sid) => {
     try {
-      const response = await axios.get(`/api/conversations/${sid}`);
+      // Incluir el token de autenticación si está disponible
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+      
+      const response = await axios.get(`/api/conversations/${sid}`, config);
       if (response.data.messages) {
         setMessages(response.data.messages.map(msg => ({
           role: msg.role,
@@ -209,10 +223,27 @@ function App() {
       // Es normal que no haya conversación previa en la primera carga
       if (err.response && err.response.status === 404) {
         console.log('Nueva sesión - no hay conversación previa');
+        setMessages([]); // Limpiar mensajes para nueva conversación
       } else {
         console.error('Error al cargar conversación:', err);
       }
     }
+  };
+
+  const handleSelectConversation = (newSessionId) => {
+    // Cambiar a la conversación seleccionada
+    setSessionId(newSessionId);
+    localStorage.setItem('sessionId', newSessionId);
+    loadConversation(newSessionId);
+    setShowConversations(false); // Cerrar panel de conversaciones en móvil
+  };
+
+  const handleNewConversation = (newSessionId) => {
+    // Crear nueva conversación
+    setSessionId(newSessionId);
+    localStorage.setItem('sessionId', newSessionId);
+    setMessages([]);
+    setShowConversations(false);
   };
 
   const handleSubmit = async (e) => {
@@ -358,8 +389,10 @@ function App() {
 
   const handleModeChange = (mode) => {
     setCurrentMode(mode);
-    // Opcionalmente limpiar la conversación al cambiar de modo
-    clearConversation();
+    // Limpiar la conversación solo si no es modo todos
+    if (mode.id !== 'todos') {
+      clearConversation();
+    }
   };
 
   const stopSpeaking = () => {
@@ -590,6 +623,7 @@ function App() {
         onClose={() => setIsSidebarOpen(false)}
         onChatSelect={handleChatSelect}
         onNewChat={handleNewChat}
+        onShowConversations={() => setShowConversations(true)}
       />
       
       <div className="app">
@@ -643,7 +677,14 @@ function App() {
         </header>
 
         <div className="chat-container">
-        <div className="messages-container">
+        {/* Mostrar TodoLists si el modo es 'todos', de lo contrario mostrar el chat normal */}
+        {currentMode?.id === 'todos' ? (
+          <TodoLists 
+            voiceInput={voiceInputForTodos}
+            onVoiceProcessed={() => setVoiceInputForTodos('')}
+          />
+        ) : (
+          <div className="messages-container">
           {messages.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">○</div>
@@ -676,7 +717,42 @@ function App() {
           )}
           <div ref={messagesEndRef} />
         </div>
+        )}
 
+        {/* Input container - mostrar diferente para modo todos */}
+        {currentMode?.id === 'todos' ? (
+          <div className="input-container">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (inputMessage.trim()) {
+                setVoiceInputForTodos(inputMessage);
+                setInputMessage('');
+              }
+            }} className="input-form">
+              <button
+                type="button"
+                className={`voice-button ${isRecording ? 'recording' : ''}`}
+                onClick={toggleRecording}
+                title={isRecording ? 'Detener grabación' : 'Iniciar grabación'}
+              >
+              </button>
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder={isRecording ? "🔴 Grabando... Habla ahora" : "Agregar tarea o comando..."}
+                className={`message-input ${isRecording ? 'recording' : ''}`}
+              />
+              <button
+                type="submit"
+                className="send-button"
+                disabled={!inputMessage.trim()}
+              >
+                Agregar
+              </button>
+            </form>
+          </div>
+        ) : (
         <div className="input-container">
           <form onSubmit={handleSubmit} className="input-form">
             <button
@@ -758,6 +834,7 @@ function App() {
             </label>
           </div>
         </div>
+        )}
       </div>
 
         <div className={`status ${isConnected ? 'connected' : 'error'}`}>
@@ -774,6 +851,25 @@ function App() {
         isOpen={showCalendarModal}
         onClose={() => setShowCalendarModal(false)}
       />
+      
+      {/* Modal de Conversaciones */}
+      {showConversations && (
+        <div className="modal-overlay" onClick={() => setShowConversations(false)}>
+          <div className="modal-content conversations-modal" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="modal-close" 
+              onClick={() => setShowConversations(false)}
+            >
+              ×
+            </button>
+            <ConversationsList
+              currentSessionId={sessionId}
+              onSelectConversation={handleSelectConversation}
+              onNewConversation={handleNewConversation}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

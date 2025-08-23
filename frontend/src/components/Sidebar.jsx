@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
 
-const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatSelect, onNewChat }) => {
+const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatSelect, onNewChat, onShowConversations }) => {
   const [modes, setModes] = useState([]);
   const [chats, setChats] = useState({});
   const [isAddingMode, setIsAddingMode] = useState(false);
@@ -460,6 +460,23 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      
+      {/* Botón de Mis Conversaciones */}
+      {onShowConversations && (
+        <div className="sidebar-section">
+          <button 
+            className="conversations-button"
+            onClick={() => {
+              onShowConversations();
+              if (window.innerWidth <= 768 && onClose) {
+                onClose();
+              }
+            }}
+          >
+            💬 Mis Conversaciones
+          </button>
+        </div>
+      )}
       
       {/* Sección de Modos */}
       <div className="sidebar-section">
