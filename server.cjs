@@ -11,7 +11,10 @@ const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
 const logger = require('./utils/logger.cjs');
 const { authenticateToken, optionalAuth } = require('./middleware/auth.cjs');
-const { router: todosRouter, setDatabase: setTodosDatabase } = require('./routes/todos.cjs');
+
+// Las rutas de todos se cargarán dinámicamente si hay BD
+let todosRouter = null;
+let setTodosDatabase = null;
 
 dotenv.config();
 
@@ -1799,7 +1802,6 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
 
 // Importar y configurar rutas de autenticación
 const createAuthRoutes = require('./routes/auth.cjs');
-const { optionalAuth, authenticateToken } = require('./middleware/auth.cjs');
 const dbModule = require('./db-connection.cjs');
 
 
@@ -2048,6 +2050,11 @@ async function startServer() {
       // Configurar rutas de todos con BD solo si está disponible
       try {
         if (db) {
+          // Cargar dinámicamente las rutas de todos solo si hay BD
+          const todosModule = require('./routes/todos.cjs');
+          todosRouter = todosModule.router;
+          setTodosDatabase = todosModule.setDatabase;
+          
           setTodosDatabase(db);
           app.use('/api/todos', todosRouter);
           console.log('✅ Rutas de Todo Lists configuradas con BD');
