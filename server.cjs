@@ -286,8 +286,13 @@ app.post('/api/conversations', optionalAuth, async (req, res) => {
 });
 
 // Obtener todas las conversaciones del usuario autenticado
-app.get('/api/conversations', authenticateToken, async (req, res) => {
+app.get('/api/conversations', optionalAuth, async (req, res) => {
   try {
+    // Si no hay usuario autenticado, devolver array vacío
+    if (!req.user) {
+      return res.json({ success: true, conversations: [] });
+    }
+    
     const userId = req.user.id;
     
     if (useDatabase) {
@@ -310,13 +315,8 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
         }))
       });
     } else {
-      // Para memoria, filtrar por sesiones que coincidan con el usuario
-      const userConversations = [];
-      for (const [sessionId, conversation] of inMemoryStore.conversations) {
-        // En memoria no tenemos user_id, así que devolvemos todas (temporal)
-        userConversations.push(conversation);
-      }
-      res.json({ success: true, conversations: userConversations });
+      // Sin base de datos, devolver array vacío
+      res.json({ success: true, conversations: [] });
     }
   } catch (error) {
     console.error('Error obteniendo conversaciones:', error);
@@ -2045,10 +2045,18 @@ async function startServer() {
       const authRoutes = createAuthRoutes(db);
       app.use('/api/auth', authRoutes);
       
-      // Configurar rutas de todos con BD
-      setTodosDatabase(db);
-      app.use('/api/todos', todosRouter);
-      console.log('✅ Rutas de Todo Lists configuradas con BD');
+      // Configurar rutas de todos con BD solo si está disponible
+      try {
+        if (db) {
+          setTodosDatabase(db);
+          app.use('/api/todos', todosRouter);
+          console.log('✅ Rutas de Todo Lists configuradas con BD');
+        } else {
+          console.log('⚠️ Rutas de Todo Lists no configuradas - BD no disponible');
+        }
+      } catch (error) {
+        console.error('❌ Error configurando rutas de todos:', error);
+      }
       
       console.log('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
       console.log('📊 DB pasada a auth routes:', !!db);
