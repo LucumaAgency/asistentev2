@@ -10,6 +10,8 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
 const logger = require('./utils/logger.cjs');
+const { authenticateToken, optionalAuth } = require('./middleware/auth.cjs');
+const { router: todosRouter, setDatabase: setTodosDatabase } = require('./routes/todos.cjs');
 
 dotenv.config();
 
@@ -237,19 +239,24 @@ app.get('/api/db-test', async (req, res) => {
   }
 });
 
-app.post('/api/conversations', async (req, res) => {
+app.post('/api/conversations', optionalAuth, async (req, res) => {
   try {
     const { session_id, metadata = {} } = req.body;
+    const userId = req.user ? req.user.id : null;
     
     if (!session_id) {
       return res.status(400).json({ error: 'session_id es requerido' });
     }
 
     if (useDatabase) {
-      const [result] = await db.execute(
-        'INSERT INTO conversations (session_id, metadata) VALUES (?, ?) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP, metadata = ?',
-        [session_id, JSON.stringify(metadata), JSON.stringify(metadata)]
-      );
+      const query = userId
+        ? 'INSERT INTO conversations (session_id, user_id, metadata) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP, metadata = ?'
+        : 'INSERT INTO conversations (session_id, metadata) VALUES (?, ?) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP, metadata = ?';
+      const params = userId
+        ? [session_id, userId, JSON.stringify(metadata), JSON.stringify(metadata)]
+        : [session_id, JSON.stringify(metadata), JSON.stringify(metadata)];
+      
+      const [result] = await db.execute(query, params);
       
       const conversationId = result.insertId || result.affectedRows;
       res.json({ 
@@ -278,15 +285,57 @@ app.post('/api/conversations', async (req, res) => {
   }
 });
 
-app.get('/api/conversations/:session_id', async (req, res) => {
+// Obtener todas las conversaciones del usuario autenticado
+app.get('/api/conversations', authenticateToken, async (req, res) => {
   try {
-    const { session_id } = req.params;
-
+    const userId = req.user.id;
+    
     if (useDatabase) {
       const [conversations] = await db.execute(
-        'SELECT * FROM conversations WHERE session_id = ?',
-        [session_id]
+        `SELECT c.*, 
+         (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count,
+         (SELECT MAX(created_at) FROM messages WHERE conversation_id = c.id) as last_message_at
+         FROM conversations c 
+         WHERE c.user_id = ? 
+         ORDER BY c.updated_at DESC 
+         LIMIT 50`,
+        [userId]
       );
+      
+      res.json({ 
+        success: true, 
+        conversations: conversations.map(conv => ({
+          ...conv,
+          metadata: conv.metadata ? JSON.parse(conv.metadata) : {}
+        }))
+      });
+    } else {
+      // Para memoria, filtrar por sesiones que coincidan con el usuario
+      const userConversations = [];
+      for (const [sessionId, conversation] of inMemoryStore.conversations) {
+        // En memoria no tenemos user_id, así que devolvemos todas (temporal)
+        userConversations.push(conversation);
+      }
+      res.json({ success: true, conversations: userConversations });
+    }
+  } catch (error) {
+    console.error('Error obteniendo conversaciones:', error);
+    res.status(500).json({ error: 'Error al obtener conversaciones' });
+  }
+});
+
+app.get('/api/conversations/:session_id', optionalAuth, async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const userId = req.user ? req.user.id : null;
+
+    if (useDatabase) {
+      const query = userId
+        ? 'SELECT * FROM conversations WHERE session_id = ? AND user_id = ?'
+        : 'SELECT * FROM conversations WHERE session_id = ?';
+      const params = userId ? [session_id, userId] : [session_id];
+      
+      const [conversations] = await db.execute(query, params);
 
       if (conversations.length === 0) {
         return res.status(404).json({ error: 'Conversación no encontrada' });
@@ -711,17 +760,62 @@ app.post('/api/chat', async (req, res) => {
     }
 
     let conversationId;
+    let userIdForConversation = null;
+    
+    // Obtener el ID del usuario si está autenticado
+    if (authHeader) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.google_id) {
+          // Es un token con google_id, buscar el ID real del usuario
+          const [users] = await db.execute(
+            'SELECT id FROM users WHERE google_id = ?',
+            [decoded.google_id]
+          );
+          if (users.length > 0) {
+            userIdForConversation = users[0].id;
+          }
+        } else if (decoded.id) {
+          // Es un token con el ID real
+          userIdForConversation = decoded.id;
+        } else if (decoded.email) {
+          // Buscar por email como fallback
+          const [users] = await db.execute(
+            'SELECT id FROM users WHERE email = ?',
+            [decoded.email]
+          );
+          if (users.length > 0) {
+            userIdForConversation = users[0].id;
+          }
+        }
+      } catch (error) {
+        logger.writeLog('⚠️ Error verificando token para conversación:', error.message);
+      }
+    }
+    
     if (useDatabase) {
-      const [conversations] = await db.execute(
-        'SELECT id FROM conversations WHERE session_id = ?',
-        [session_id]
-      );
+      // Buscar conversación existente (con o sin user_id según autenticación)
+      const conversationQuery = userIdForConversation
+        ? 'SELECT id FROM conversations WHERE session_id = ? AND user_id = ?'
+        : 'SELECT id FROM conversations WHERE session_id = ?';
+      const conversationParams = userIdForConversation
+        ? [session_id, userIdForConversation]
+        : [session_id];
+        
+      const [conversations] = await db.execute(conversationQuery, conversationParams);
 
       if (conversations.length === 0) {
-        const [result] = await db.execute(
-          'INSERT INTO conversations (session_id, metadata) VALUES (?, ?)',
-          [session_id, JSON.stringify({})]
-        );
+        // Crear nueva conversación con user_id si está disponible
+        const insertQuery = userIdForConversation
+          ? 'INSERT INTO conversations (session_id, user_id, metadata) VALUES (?, ?, ?)'
+          : 'INSERT INTO conversations (session_id, metadata) VALUES (?, ?)';
+        const insertParams = userIdForConversation
+          ? [session_id, userIdForConversation, JSON.stringify({})]
+          : [session_id, JSON.stringify({})];
+          
+        const [result] = await db.execute(insertQuery, insertParams);
         conversationId = result.insertId;
       } else {
         conversationId = conversations[0].id;
@@ -1117,24 +1211,30 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
-app.delete('/api/conversations/:session_id', async (req, res) => {
+app.delete('/api/conversations/:session_id', optionalAuth, async (req, res) => {
   try {
     const { session_id } = req.params;
+    const userId = req.user ? req.user.id : null;
 
     if (useDatabase) {
-      const [conversations] = await db.execute(
-        'SELECT id FROM conversations WHERE session_id = ?',
-        [session_id]
-      );
+      // Solo permitir eliminar conversaciones propias si está autenticado
+      const query = userId
+        ? 'SELECT id FROM conversations WHERE session_id = ? AND user_id = ?'
+        : 'SELECT id FROM conversations WHERE session_id = ?';
+      const params = userId ? [session_id, userId] : [session_id];
+      
+      const [conversations] = await db.execute(query, params);
 
       if (conversations.length === 0) {
-        return res.status(404).json({ error: 'Conversación no encontrada' });
+        return res.status(404).json({ error: 'Conversación no encontrada o no autorizado' });
       }
 
-      await db.execute(
-        'DELETE FROM conversations WHERE session_id = ?',
-        [session_id]
-      );
+      const deleteQuery = userId
+        ? 'DELETE FROM conversations WHERE session_id = ? AND user_id = ?'
+        : 'DELETE FROM conversations WHERE session_id = ?';
+      const deleteParams = userId ? [session_id, userId] : [session_id];
+      
+      await db.execute(deleteQuery, deleteParams);
 
       res.json({ success: true, message: 'Conversación eliminada' });
     } else {
@@ -1944,6 +2044,11 @@ async function startServer() {
       // Configurar nuevas rutas con BD
       const authRoutes = createAuthRoutes(db);
       app.use('/api/auth', authRoutes);
+      
+      // Configurar rutas de todos con BD
+      setTodosDatabase(db);
+      app.use('/api/todos', todosRouter);
+      console.log('✅ Rutas de Todo Lists configuradas con BD');
       
       console.log('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
       console.log('📊 DB pasada a auth routes:', !!db);

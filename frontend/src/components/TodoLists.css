@@ -1,0 +1,409 @@
+.todo-lists-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header con estadísticas */
+.todo-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.todo-stats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.stat-value.completed {
+  color: #10b981;
+}
+
+.stat-value.pending {
+  color: #fbbf24;
+}
+
+.stat-value.overdue {
+  color: #ef4444;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  text-transform: uppercase;
+  margin-top: 0.25rem;
+}
+
+/* Categorías */
+.todo-categories {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.category-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.category-tab:hover {
+  background: #f3f4f6;
+}
+
+.category-tab.active {
+  background: #f0f9ff;
+  border-color: currentColor;
+}
+
+.category-icon {
+  font-size: 1.2rem;
+}
+
+.category-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Contenido principal */
+.todo-main {
+  flex: 1;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+/* Panel de listas */
+.todo-lists-panel {
+  width: 300px;
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.lists-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.lists-header h3 {
+  margin: 0;
+  color: #374151;
+  font-size: 1.1rem;
+}
+
+.add-list-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #667eea;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-list-btn:hover {
+  background: #5a67d8;
+  transform: scale(1.1);
+}
+
+.new-list-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.new-list-form input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.new-list-form button {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.new-list-form button:first-of-type {
+  background: #10b981;
+  color: white;
+}
+
+.new-list-form button:last-of-type {
+  background: #ef4444;
+  color: white;
+}
+
+.lists-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list-card {
+  padding: 0.75rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.list-card:hover {
+  background: #f9fafb;
+}
+
+.list-card.active {
+  background: #f0f9ff;
+  border-color: #667eea;
+}
+
+.list-title {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.list-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.list-progress {
+  flex: 1;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #667eea;
+  transition: width 0.3s;
+}
+
+/* Panel de items */
+.todo-items-panel {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.items-header {
+  margin-bottom: 1.5rem;
+}
+
+.items-header h2 {
+  margin: 0 0 1rem 0;
+  color: #374151;
+}
+
+.new-item-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.new-item-form input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.new-item-form input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.add-item-btn {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-item-btn:hover {
+  background: #5a67d8;
+}
+
+.items-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s;
+  cursor: move;
+}
+
+.todo-item:hover {
+  background: #f9fafb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.todo-item.completed {
+  opacity: 0.6;
+}
+
+.todo-item.completed .item-content {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.todo-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.item-content {
+  flex: 1;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.voice-badge {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+.item-delete {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  opacity: 0;
+}
+
+.todo-item:hover .item-delete {
+  opacity: 1;
+}
+
+.item-delete:hover {
+  color: #ef4444;
+}
+
+.completed-separator {
+  margin: 1.5rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.no-list-selected {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #9ca3af;
+  font-size: 1.1rem;
+}
+
+.todo-lists-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 1.2rem;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .todo-main {
+    flex-direction: column;
+  }
+  
+  .todo-lists-panel {
+    width: 100%;
+    max-height: 200px;
+  }
+  
+  .todo-stats {
+    gap: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 1.2rem;
+  }
+  
+  .category-tab {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}
