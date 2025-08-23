@@ -7,7 +7,7 @@ import LoginWithCalendar from './components/LoginWithCalendar';
 import CalendarEvents from './components/CalendarEvents';
 import VoiceAssistant from './components/VoiceAssistant';
 import ConversationsList from './components/ConversationsList';
-import TodoLists from './components/TodoLists';
+import SimpleTodoLists from './components/SimpleTodoLists';
 import './App.css';
 
 function App() {
@@ -677,9 +677,9 @@ function App() {
         </header>
 
         <div className="chat-container">
-        {/* Mostrar TodoLists si el modo es 'todos', de lo contrario mostrar el chat normal */}
+        {/* Mostrar SimpleTodoLists si el modo es 'todos', de lo contrario mostrar el chat normal */}
         {currentMode?.id === 'todos' ? (
-          <TodoLists 
+          <SimpleTodoLists 
             voiceInput={voiceInputForTodos}
             onVoiceProcessed={() => setVoiceInputForTodos('')}
           />
