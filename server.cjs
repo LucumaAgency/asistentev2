@@ -300,6 +300,48 @@ app.get('/api/diagnostics', optionalAuth, (req, res) => {
   res.json(diagnostics);
 });
 
+// Endpoint de prueba para OpenAI
+app.get('/api/test-openai', async (req, res) => {
+  try {
+    if (!openaiApiKey || openaiApiKey === 'sk-test-key') {
+      return res.json({ 
+        success: false, 
+        error: 'OpenAI API key no configurada',
+        hint: 'Configura OPENAI_API_KEY en Plesk Node.js Settings'
+      });
+    }
+
+    logger.info('🧪 Probando conexión con OpenAI...');
+    
+    // Prueba simple con timeout
+    const testPromise = openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'Di "hola" en una palabra' }],
+      max_tokens: 10,
+      temperature: 0
+    });
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 10000)
+    );
+
+    const result = await Promise.race([testPromise, timeoutPromise]);
+    
+    return res.json({ 
+      success: true, 
+      response: result.choices[0].message.content,
+      model: result.model
+    });
+  } catch (error) {
+    logger.error('Error en test de OpenAI:', error.message);
+    return res.json({ 
+      success: false, 
+      error: error.message,
+      type: error.constructor.name
+    });
+  }
+});
+
 app.get('/api/db-test', async (req, res) => {
   if (!useDatabase) {
     return res.json({ 
@@ -1091,17 +1133,31 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Validar que tenemos API key antes de hacer la llamada
-    if (!openaiApiKey || openaiApiKey === '' || openaiApiKey === 'sk-dummy-key-for-initialization') {
-      logger.error('❌ No se puede procesar el chat: OPENAI_API_KEY no está configurada');
+    if (!openaiApiKey || openaiApiKey === '' || openaiApiKey === 'sk-dummy-key-for-initialization' || openaiApiKey === 'sk-test-key') {
+      logger.error('❌ No se puede procesar el chat: OPENAI_API_KEY no está configurada correctamente');
       return res.status(503).json({ 
         error: 'El servicio de chat no está disponible. Por favor, contacta al administrador.',
         details: 'OpenAI API key no configurada'
       });
     }
 
+    logger.info('🤖 Llamando a OpenAI con modelo gpt-4o-mini');
+    logger.debug('Parámetros:', { 
+      model: completionParams.model,
+      messageCount: messages.length,
+      hasTools: !!completionParams.tools 
+    });
+
     let completion;
     try {
-      completion = await openai.chat.completions.create(completionParams);
+      // Agregar timeout para evitar que Plesk corte la conexión
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout en llamada a OpenAI')), 25000)
+      );
+      
+      const apiCallPromise = openai.chat.completions.create(completionParams);
+      
+      completion = await Promise.race([apiCallPromise, timeoutPromise]);
     } catch (openaiError) {
       logger.error('❌ Error llamando a OpenAI API:', {
         error: openaiError.message,
@@ -1355,6 +1411,11 @@ app.delete('/api/conversations/:session_id', optionalAuth, async (req, res) => {
   try {
     const { session_id } = req.params;
     const userId = req.user ? req.user.id : null;
+    
+    // Validar que session_id existe
+    if (!session_id || session_id === 'undefined' || session_id === 'null') {
+      return res.status(400).json({ error: 'session_id es requerido' });
+    }
 
     if (useDatabase) {
       // Solo permitir eliminar conversaciones propias si está autenticado
