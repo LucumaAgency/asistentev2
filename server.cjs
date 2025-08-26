@@ -1067,31 +1067,39 @@ app.post('/api/chat', async (req, res) => {
       try {
         fileLogger.log('Buscando conversación en BD', { session_id, userIdForConversation });
         
-        // Buscar conversación existente (con o sin user_id según autenticación)
-        const conversationQuery = userIdForConversation
-          ? 'SELECT id FROM conversations WHERE session_id = ? AND user_id = ?'
-          : 'SELECT id FROM conversations WHERE session_id = ?';
-        const conversationParams = userIdForConversation
-          ? [session_id, userIdForConversation]
-          : [session_id];
+        // Primero buscar cualquier conversación con este session_id
+        const [existingConversations] = await db.execute(
+          'SELECT id, user_id FROM conversations WHERE session_id = ?',
+          [session_id]
+        );
+        
+        if (existingConversations.length > 0) {
+          // Ya existe una conversación con este session_id
+          conversationId = existingConversations[0].id;
           
-        const [conversations] = await db.execute(conversationQuery, conversationParams);
+          // Si el usuario actual es diferente al de la conversación, actualizar
+          if (userIdForConversation && existingConversations[0].user_id !== userIdForConversation) {
+            await db.execute(
+              'UPDATE conversations SET user_id = ? WHERE id = ?',
+              [userIdForConversation, conversationId]
+            );
+            fileLogger.log('Conversación actualizada con nuevo user_id');
+          }
+        } else {
+          // Crear nueva conversación
+          const insertQuery = userIdForConversation
+            ? 'INSERT INTO conversations (session_id, user_id, metadata) VALUES (?, ?, ?)'
+            : 'INSERT INTO conversations (session_id, metadata) VALUES (?, ?)';
+          const insertParams = userIdForConversation
+            ? [session_id, userIdForConversation, JSON.stringify({})]
+            : [session_id, JSON.stringify({})];
+            
+          const [result] = await db.execute(insertQuery, insertParams);
+          conversationId = result.insertId;
+          fileLogger.log('Nueva conversación creada', { conversationId, session_id });
+        }
 
-      if (conversations.length === 0) {
-        // Crear nueva conversación con user_id si está disponible
-        const insertQuery = userIdForConversation
-          ? 'INSERT INTO conversations (session_id, user_id, metadata) VALUES (?, ?, ?)'
-          : 'INSERT INTO conversations (session_id, metadata) VALUES (?, ?)';
-        const insertParams = userIdForConversation
-          ? [session_id, userIdForConversation, JSON.stringify({})]
-          : [session_id, JSON.stringify({})];
-          
-        const [result] = await db.execute(insertQuery, insertParams);
-        conversationId = result.insertId;
-      } else {
-        conversationId = conversations[0].id;
-      }
-
+        // Guardar el mensaje
         await db.execute(
           'INSERT INTO messages (conversation_id, role, content, audio_data) VALUES (?, ?, ?, ?)',
           [conversationId, 'user', message, audio_data || null]
