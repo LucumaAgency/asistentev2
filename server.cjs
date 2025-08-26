@@ -783,21 +783,42 @@ const logger = createLogger('Server');
 };
 
 app.post('/api/chat', async (req, res) => {
+  // Logging inicial
+  logger.info('🚀 POST /api/chat iniciado');
+  
   try {
     const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
+    
+    // Validación temprana
+    if (!message || !session_id) {
+      logger.error('❌ Faltan parámetros requeridos');
+      return res.status(400).json({ error: 'message y session_id son requeridos' });
+    }
+    
+    // Verificar API key inmediatamente
+    if (!openaiApiKey || openaiApiKey === 'sk-test-key' || openaiApiKey.length < 20) {
+      logger.error('❌ OpenAI API key no válida');
+      return res.status(503).json({ 
+        error: 'Servicio no disponible',
+        details: 'Configuración de OpenAI incorrecta'
+      });
+    }
+    
+    logger.info('✅ Validaciones iniciales pasadas');
     
     // Obtener tokens del usuario para Calendar si está en modo calendar
     let userTokens = null;
     if (mode_id === 'calendar') {
-      logger.writeLog('📅 ==========MODO CALENDAR ACTIVADO==========');
-      logger.writeLog('   Mensaje recibido:', message);
-      logger.writeLog('   Session ID:', session_id);
-      logger.writeLog('   Mode ID:', mode_id);
-      const authHeader = req.headers['authorization'];
-      if (authHeader && useDatabase) {
-        const token = authHeader.split(' ')[1];
-        
-        try {
+      try {
+        logger.writeLog('📅 ==========MODO CALENDAR ACTIVADO==========');
+        logger.writeLog('   Mensaje recibido:', message);
+        logger.writeLog('   Session ID:', session_id);
+        logger.writeLog('   Mode ID:', mode_id);
+        const authHeader = req.headers['authorization'];
+        if (authHeader && useDatabase) {
+          const token = authHeader.split(' ')[1];
+          
+          try {
           // Decodificar el JWT para obtener el user_id
           const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
           logger.writeLog('👤 Usuario autenticado:', { 
@@ -873,18 +894,15 @@ app.post('/api/chat', async (req, res) => {
       } else if (!authHeader) {
         logger.writeLog('⚠️ No hay header de autorización');
       }
+      } catch (calendarError) {
+        // Si hay error con calendar, continuar sin tokens
+        logger.error('Error procesando modo calendar:', calendarError.message);
+        userTokens = null;
+      }
     }
 
-    if (!message || !session_id) {
-      return res.status(400).json({ error: 'message y session_id son requeridos' });
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ 
-        error: 'API key de OpenAI no configurada',
-        message: 'Por favor, configura OPENAI_API_KEY en las variables de entorno'
-      });
-    }
+    // Log de progreso
+    logger.info('📝 Procesando conversación...');
 
     let conversationId;
     let userIdForConversation = null;
@@ -1141,23 +1159,32 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    logger.info('🤖 Llamando a OpenAI con modelo gpt-4o-mini');
-    logger.debug('Parámetros:', { 
+    logger.info('🤖 Preparando llamada a OpenAI con modelo gpt-4o-mini');
+    logger.info('📊 Estadísticas:', { 
       model: completionParams.model,
       messageCount: messages.length,
-      hasTools: !!completionParams.tools 
+      hasTools: !!completionParams.tools,
+      temperature: completionParams.temperature,
+      max_tokens: completionParams.max_tokens
     });
 
     let completion;
     try {
+      logger.info('⏳ Iniciando llamada a OpenAI API...');
+      
       // Agregar timeout para evitar que Plesk corte la conexión
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout en llamada a OpenAI')), 25000)
+        setTimeout(() => {
+          logger.error('⏰ Timeout alcanzado (25s)');
+          reject(new Error('Timeout en llamada a OpenAI'));
+        }, 25000)
       );
       
       const apiCallPromise = openai.chat.completions.create(completionParams);
       
       completion = await Promise.race([apiCallPromise, timeoutPromise]);
+      
+      logger.info('✅ Respuesta recibida de OpenAI');
     } catch (openaiError) {
       logger.error('❌ Error llamando a OpenAI API:', {
         error: openaiError.message,
