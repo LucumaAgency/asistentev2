@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './SimpleTodoLists.css';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('TodoLists');
 
 function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
   const [lists, setLists] = useState([]);
@@ -55,7 +58,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
         setLists(listsWithItems);
       }
     } catch (err) {
-      console.error('Error cargando listas:', err);
+      logger.error('Error cargando listas:', err);
       setError('Error al cargar las listas');
     } finally {
       setLoading(false);
@@ -82,7 +85,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
         });
       }
     } catch (err) {
-      console.error('Error configurando usuario:', err);
+      logger.error('Error configurando usuario:', err);
     }
   };
 
@@ -118,7 +121,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
         }
       }
     } catch (err) {
-      console.error('Error creando lista:', err);
+      logger.error('Error creando lista:', err);
     }
   };
 
@@ -142,7 +145,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
         ));
       }
     } catch (err) {
-      console.error('Error agregando item:', err);
+      logger.error('Error agregando item:', err);
     }
   };
 
@@ -168,7 +171,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
         ));
       }
     } catch (err) {
-      console.error('Error actualizando item:', err);
+      logger.error('Error actualizando item:', err);
     }
   };
 
@@ -185,7 +188,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
           : list
       ));
     } catch (err) {
-      console.error('Error eliminando item:', err);
+      logger.error('Error eliminando item:', err);
     }
   };
 
@@ -200,7 +203,7 @@ function SimpleTodoLists({ voiceInput, onVoiceProcessed }) {
 
       setLists(lists.filter(list => list.id !== listId));
     } catch (err) {
-      console.error('Error eliminando lista:', err);
+      logger.error('Error eliminando lista:', err);
     }
   };
 

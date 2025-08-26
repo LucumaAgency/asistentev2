@@ -9,7 +9,8 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
-const logger = require('./utils/logger.cjs');
+const { createLogger } = require('./utils/backend-logger.cjs');
+const logger = createLogger('Server');
 const { authenticateToken, optionalAuth } = require('./middleware/auth.cjs');
 
 // Las rutas de todos se cargarán dinámicamente si hay BD
@@ -107,10 +108,10 @@ async function createDefaultModes(connection) {
         ]
       );
       
-      console.log('✅ Modos por defecto creados: General y Calendario');
+      logger.info('✅ Modos por defecto creados: General y Calendario');
     }
   } catch (error) {
-    console.error('Error creando modos por defecto:', error);
+    logger.error('Error creando modos por defecto:', error);
   }
 }
 
@@ -179,17 +180,17 @@ async function initDatabase() {
 
     db = connection;
     useDatabase = true;
-    console.log('✅ Base de datos conectada y tablas creadas');
+    logger.info('✅ Base de datos conectada y tablas creadas');
     
     // Establecer conexión en el módulo compartido
     dbModule.setConnection(connection);
-    console.log('🔗 Conexión establecida en módulo compartido');
+    logger.info('🔗 Conexión establecida en módulo compartido');
     
     // Crear modos por defecto si no existen
     await createDefaultModes(connection);
   } catch (error) {
-    console.error('⚠️ Error conectando a la base de datos:', error.message);
-    console.log('📝 Usando almacenamiento en memoria como fallback');
+    logger.error('⚠️ Error conectando a la base de datos:', error.message);
+    logger.info('📝 Usando almacenamiento en memoria como fallback');
     useDatabase = false;
   }
 }
@@ -283,7 +284,7 @@ app.post('/api/conversations', optionalAuth, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error creando conversación:', error);
+    logger.error('Error creando conversación:', error);
     res.status(500).json({ error: 'Error al crear conversación' });
   }
 });
@@ -322,7 +323,7 @@ app.get('/api/conversations', optionalAuth, async (req, res) => {
       res.json({ success: true, conversations: [] });
     }
   } catch (error) {
-    console.error('Error obteniendo conversaciones:', error);
+    logger.error('Error obteniendo conversaciones:', error);
     res.status(500).json({ error: 'Error al obtener conversaciones' });
   }
 });
@@ -370,7 +371,7 @@ app.get('/api/conversations/:session_id', optionalAuth, async (req, res) => {
       res.json({ conversation, messages });
     }
   } catch (error) {
-    console.error('Error obteniendo conversación:', error);
+    logger.error('Error obteniendo conversación:', error);
     res.status(500).json({ error: 'Error al obtener conversación' });
   }
 });
@@ -406,7 +407,8 @@ const calendarFunctions = {
   
   schedule_meeting: async (params, userTokens) => {
     // Logger ya es una instancia, no una clase
-    const logger = require('./utils/logger.cjs');
+    const { createLogger } = require('./utils/backend-logger.cjs');
+const logger = createLogger('Server');
     logger.writeLog('📅 INICIO schedule_meeting con params:', params);
     
     // Validar y corregir el año si es 2023
@@ -423,8 +425,8 @@ const calendarFunctions = {
         tokenLength: userTokens?.access_token?.length
       });
       
-      console.log('📅 FUNCIÓN schedule_meeting llamada con parámetros:', JSON.stringify(params, null, 2));
-      console.log('🔑 DEBUG DETALLADO DE TOKENS:', {
+      logger.info('📅 FUNCIÓN schedule_meeting llamada con parámetros:', JSON.stringify(params, null, 2));
+      logger.info('🔑 DEBUG DETALLADO DE TOKENS:', {
         hasTokens: !!userTokens,
         hasAccessToken: !!(userTokens && userTokens.access_token),
         hasRefreshToken: !!(userTokens && userTokens.refresh_token),
@@ -476,7 +478,7 @@ const calendarFunctions = {
           throw createEventError;
         }
         
-        console.log('🎉 EVENTO CREADO EXITOSAMENTE:', result);
+        logger.info('🎉 EVENTO CREADO EXITOSAMENTE:', result);
         logger.writeLog('✅ EVENTO CREADO EN GOOGLE CALENDAR', {
           eventId: result.eventId,
           meetLink: result.meetLink,
@@ -492,7 +494,7 @@ const calendarFunctions = {
         };
       } else {
         // Modo simulación si no hay tokens
-        console.log('⚠️ NO HAY TOKENS DE CALENDAR - MODO SIMULACIÓN');
+        logger.info('⚠️ NO HAY TOKENS DE CALENDAR - MODO SIMULACIÓN');
         logger.writeLog('⚠️ MODO SIMULACIÓN - No hay tokens de Calendar');
         return {
           success: true,
@@ -503,7 +505,7 @@ const calendarFunctions = {
         };
       }
     } catch (error) {
-      console.error('❌ ERROR AGENDANDO REUNIÓN:', error);
+      logger.error('❌ ERROR AGENDANDO REUNIÓN:', error);
       logger.logError(error);
       return {
         success: false,
@@ -540,7 +542,7 @@ const calendarFunctions = {
         };
       }
     } catch (error) {
-      console.error('Error verificando disponibilidad:', error);
+      logger.error('Error verificando disponibilidad:', error);
       return {
         success: false,
         error: error.message
@@ -587,7 +589,7 @@ const calendarFunctions = {
         };
       }
     } catch (error) {
-      console.error('Error listando eventos:', error);
+      logger.error('Error listando eventos:', error);
       return {
         success: false,
         error: error.message
@@ -616,7 +618,7 @@ const calendarFunctions = {
         };
       }
     } catch (error) {
-      console.error('Error verificando disponibilidad:', error);
+      logger.error('Error verificando disponibilidad:', error);
       return {
         available: true,
         conflicts: [],
@@ -649,7 +651,7 @@ const calendarFunctions = {
         };
       }
     } catch (error) {
-      console.error('Error buscando horario disponible:', error);
+      logger.error('Error buscando horario disponible:', error);
       return {
         available: false,
         error: error.message
@@ -893,7 +895,7 @@ app.post('/api/chat', async (req, res) => {
           }
         }
       } catch (contextError) {
-        console.log('Error obteniendo contexto del modo:', contextError);
+        logger.info('Error obteniendo contexto del modo:', contextError);
         // Continuar sin contexto si hay error
       }
     }
@@ -1014,7 +1016,7 @@ app.post('/api/chat', async (req, res) => {
     
     // Manejar function calling si el modelo quiere usar herramientas
     if (completion.choices[0].message.tool_calls) {
-      console.log('🛠️ El modelo quiere usar herramientas');
+      logger.info('🛠️ El modelo quiere usar herramientas');
       
       // Logging detallado a archivo
       const debugInfo = {
@@ -1026,7 +1028,7 @@ app.post('/api/chat', async (req, res) => {
       };
       
       logger.writeLog('📊 VERIFICACIÓN DE FUNCIONES:', debugInfo);
-      console.log('📊 Verificación de funciones disponibles:', debugInfo);
+      logger.info('📊 Verificación de funciones disponibles:', debugInfo);
       
       const toolCalls = completion.choices[0].message.tool_calls;
       const toolResults = [];
@@ -1035,7 +1037,7 @@ app.post('/api/chat', async (req, res) => {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
         console.log(`📞 Llamando función: ${functionName}`);
-        console.log('   Argumentos:', functionArgs);
+        logger.info('   Argumentos:', functionArgs);
         
         let result;
         switch (functionName) {
@@ -1054,7 +1056,7 @@ app.post('/api/chat', async (req, res) => {
               };
               
               logger.writeLog('🗓️ IA EJECUTANDO schedule_meeting:', scheduleDebug);
-              console.log('🗓️ IA ejecutando schedule_meeting - DEBUG:', scheduleDebug);
+              logger.info('🗓️ IA ejecutando schedule_meeting - DEBUG:', scheduleDebug);
               
               // Validar que la función existe antes de llamarla
               if (typeof calendarFunctions.schedule_meeting !== 'function') {
@@ -1072,14 +1074,14 @@ app.post('/api/chat', async (req, res) => {
               };
               
               logger.writeLog('   ✅ RESULTADO DE IA:', resultDebug);
-              console.log('   ✅ Resultado de IA:', resultDebug);
+              logger.info('   ✅ Resultado de IA:', resultDebug);
               
             } catch (scheduleError) {
               logger.writeLog('❌ ERROR EN schedule_meeting:', {
                 message: scheduleError.message,
                 stack: scheduleError.stack
               });
-              console.error('❌ Error en schedule_meeting:', scheduleError);
+              logger.error('❌ Error en schedule_meeting:', scheduleError);
               result = {
                 error: scheduleError.message,
                 details: 'Error al agendar la reunión'
@@ -1164,7 +1166,7 @@ app.post('/api/chat', async (req, res) => {
     logger.writeLog('❌ ERROR CRÍTICO EN CHAT:', errorDetails);
     
     // También en consola
-    console.error('❌ ERROR EN CHAT - DETALLES COMPLETOS:', errorDetails);
+    logger.error('❌ ERROR EN CHAT - DETALLES COMPLETOS:', errorDetails);
     res.status(500).json({ 
       error: 'Error procesando mensaje',
       details: error.message 
@@ -1209,7 +1211,7 @@ app.post('/api/messages', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error guardando mensaje:', error);
+    logger.error('Error guardando mensaje:', error);
     res.status(500).json({ error: 'Error al guardar mensaje' });
   }
 });
@@ -1254,7 +1256,7 @@ app.delete('/api/conversations/:session_id', optionalAuth, async (req, res) => {
       res.json({ success: true, message: 'Conversación eliminada' });
     }
   } catch (error) {
-    console.error('Error eliminando conversación:', error);
+    logger.error('Error eliminando conversación:', error);
     res.status(500).json({ error: 'Error al eliminar conversación' });
   }
 });
@@ -1272,7 +1274,7 @@ app.get('/api/modes', async (req, res) => {
       res.json([]);
     }
   } catch (error) {
-    console.error('Error obteniendo modos:', error);
+    logger.error('Error obteniendo modos:', error);
     res.status(500).json({ error: 'Error al obtener modos' });
   }
 });
@@ -1296,7 +1298,7 @@ app.post('/api/modes', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error creando modo:', error);
+    logger.error('Error creando modo:', error);
     res.status(500).json({ error: 'Error al crear modo' });
   }
 });
@@ -1321,7 +1323,7 @@ app.put('/api/modes/:mode_id', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error actualizando modo:', error);
+    logger.error('Error actualizando modo:', error);
     res.status(500).json({ error: 'Error al actualizar modo' });
   }
 });
@@ -1341,7 +1343,7 @@ app.delete('/api/modes/:mode_id', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error eliminando modo:', error);
+    logger.error('Error eliminando modo:', error);
     res.status(500).json({ error: 'Error al eliminar modo' });
   }
 });
@@ -1358,7 +1360,7 @@ app.use((req, res, next) => {
   req.db = currentDb || db;  // Fallback a db local si existe
   
   if (!req.db) {
-    console.log('⚠️ Middleware: No hay BD disponible para Calendar');
+    logger.info('⚠️ Middleware: No hay BD disponible para Calendar');
   }
   
   next();
@@ -1370,7 +1372,7 @@ app.get('/api/calendar/auth-url', (req, res) => {
     const authUrl = calendarService.getAuthUrl();
     res.json({ authUrl });
   } catch (error) {
-    console.error('Error generando URL de autorización:', error);
+    logger.error('Error generando URL de autorización:', error);
     res.status(500).json({ error: 'Error al generar URL de autorización' });
   }
 });
@@ -1378,7 +1380,7 @@ app.get('/api/calendar/auth-url', (req, res) => {
 // Listar eventos del calendario
 app.get('/api/calendar/events', calendarAuth, async (req, res) => {
   try {
-    console.log('📅 Listando eventos del calendario para usuario:', req.userEmail);
+    logger.info('📅 Listando eventos del calendario para usuario:', req.userEmail);
     
     const { timeMin, maxResults = 10 } = req.query;
     const events = await req.calendarService.listEvents(timeMin, maxResults);
@@ -1398,7 +1400,7 @@ app.get('/api/calendar/events', calendarAuth, async (req, res) => {
       count: formattedEvents.length
     });
   } catch (error) {
-    console.error('❌ Error listando eventos:', error);
+    logger.error('❌ Error listando eventos:', error);
     res.status(500).json({ error: 'Error al obtener eventos del calendario' });
   }
 });
@@ -1406,11 +1408,11 @@ app.get('/api/calendar/events', calendarAuth, async (req, res) => {
 // Obtener eventos de hoy
 app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
   try {
-    console.log('📅 Obteniendo eventos de hoy para:', req.userEmail);
+    logger.info('📅 Obteniendo eventos de hoy para:', req.userEmail);
     
     // Verificar que calendarService existe
     if (!req.calendarService) {
-      console.error('❌ ERROR: No hay calendarService en req');
+      logger.error('❌ ERROR: No hay calendarService en req');
       return res.status(500).json({ 
         error: 'Servicio de Calendar no configurado',
         details: 'calendarService no existe en request',
@@ -1420,7 +1422,7 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
     
     // Verificar que el método existe
     if (typeof req.calendarService.getTodayEvents !== 'function') {
-      console.error('❌ ERROR: getTodayEvents no es una función');
+      logger.error('❌ ERROR: getTodayEvents no es una función');
       return res.status(500).json({ 
         error: 'Método getTodayEvents no disponible',
         details: 'El servicio no tiene el método getTodayEvents',
@@ -1445,9 +1447,9 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
       count: formattedEvents.length
     });
   } catch (error) {
-    console.error('❌ Error COMPLETO obteniendo eventos de hoy:', error);
-    console.error('   Stack:', error.stack);
-    console.error('   Message:', error.message);
+    logger.error('❌ Error COMPLETO obteniendo eventos de hoy:', error);
+    logger.error('   Stack:', error.stack);
+    logger.error('   Message:', error.message);
     
     // Devolver más detalles del error
     res.status(500).json({ 
@@ -1464,8 +1466,8 @@ app.get('/api/calendar/events/today', calendarAuth, async (req, res) => {
 // Crear un evento
 app.post('/api/calendar/events', calendarAuth, async (req, res) => {
   try {
-    console.log('📅 Creando evento para usuario:', req.userEmail);
-    console.log('   Datos del evento:', req.body);
+    logger.info('📅 Creando evento para usuario:', req.userEmail);
+    logger.info('   Datos del evento:', req.body);
     
     const { title, description, date, time, duration, attendees } = req.body;
     
@@ -1486,7 +1488,7 @@ app.post('/api/calendar/events', calendarAuth, async (req, res) => {
     
     const result = await req.calendarService.createEvent(eventDetails);
     
-    console.log('✅ Evento creado exitosamente:', result.eventId);
+    logger.info('✅ Evento creado exitosamente:', result.eventId);
     
     res.json({
       success: true,
@@ -1496,10 +1498,10 @@ app.post('/api/calendar/events', calendarAuth, async (req, res) => {
       message: 'Evento creado exitosamente'
     });
   } catch (error) {
-    console.error('❌ Error COMPLETO creando evento:', error);
-    console.error('   Stack:', error.stack);
-    console.error('   Message:', error.message);
-    console.error('   Response data:', error.response?.data);
+    logger.error('❌ Error COMPLETO creando evento:', error);
+    logger.error('   Stack:', error.stack);
+    logger.error('   Message:', error.message);
+    logger.error('   Response data:', error.response?.data);
     
     res.status(500).json({ 
       error: 'Error al crear evento en el calendario',
@@ -1522,7 +1524,7 @@ app.post('/api/calendar/check-availability', calendarAuth, async (req, res) => {
       });
     }
     
-    console.log('🔍 Verificando disponibilidad:', { date, time, duration });
+    logger.info('🔍 Verificando disponibilidad:', { date, time, duration });
     
     const availability = await req.calendarService.checkAvailability(date, time, duration);
     
@@ -1531,7 +1533,7 @@ app.post('/api/calendar/check-availability', calendarAuth, async (req, res) => {
       ...availability
     });
   } catch (error) {
-    console.error('❌ Error verificando disponibilidad:', error);
+    logger.error('❌ Error verificando disponibilidad:', error);
     res.status(500).json({ error: 'Error al verificar disponibilidad' });
   }
 });
@@ -1541,7 +1543,7 @@ app.get('/api/calendar/next-available', calendarAuth, async (req, res) => {
   try {
     const { duration = 30 } = req.query;
     
-    console.log('🔍 Buscando próximo horario disponible');
+    logger.info('🔍 Buscando próximo horario disponible');
     
     const result = await req.calendarService.findNextAvailableSlot(parseInt(duration));
     
@@ -1550,7 +1552,7 @@ app.get('/api/calendar/next-available', calendarAuth, async (req, res) => {
       ...result
     });
   } catch (error) {
-    console.error('❌ Error buscando horario disponible:', error);
+    logger.error('❌ Error buscando horario disponible:', error);
     res.status(500).json({ error: 'Error al buscar horario disponible' });
   }
 });
@@ -1561,7 +1563,7 @@ app.patch('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
     const { eventId } = req.params;
     const updates = req.body;
     
-    console.log('📝 Actualizando evento:', eventId);
+    logger.info('📝 Actualizando evento:', eventId);
     
     const updatedEvent = await req.calendarService.updateEvent(eventId, updates);
     
@@ -1571,7 +1573,7 @@ app.patch('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
       message: 'Evento actualizado exitosamente'
     });
   } catch (error) {
-    console.error('❌ Error actualizando evento:', error);
+    logger.error('❌ Error actualizando evento:', error);
     res.status(500).json({ error: 'Error al actualizar evento' });
   }
 });
@@ -1581,7 +1583,7 @@ app.delete('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
   try {
     const { eventId } = req.params;
     
-    console.log('🗑️ Eliminando evento:', eventId);
+    logger.info('🗑️ Eliminando evento:', eventId);
     
     await req.calendarService.deleteEvent(eventId);
     
@@ -1590,7 +1592,7 @@ app.delete('/api/calendar/events/:eventId', calendarAuth, async (req, res) => {
       message: 'Evento eliminado exitosamente'
     });
   } catch (error) {
-    console.error('❌ Error eliminando evento:', error);
+    logger.error('❌ Error eliminando evento:', error);
     res.status(500).json({ error: 'Error al eliminar evento' });
   }
 });
@@ -1616,7 +1618,7 @@ app.get('/api/chat-sessions', async (req, res) => {
       res.json([]);
     }
   } catch (error) {
-    console.error('Error obteniendo sesiones de chat:', error);
+    logger.error('Error obteniendo sesiones de chat:', error);
     res.status(500).json({ error: 'Error al obtener sesiones de chat' });
   }
 });
@@ -1663,7 +1665,7 @@ app.post('/api/chat-sessions', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error creando sesión de chat:', error);
+    logger.error('Error creando sesión de chat:', error);
     res.status(500).json({ error: 'Error al crear sesión de chat' });
   }
 });
@@ -1700,7 +1702,7 @@ app.put('/api/chat-sessions/:chat_id', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error actualizando sesión de chat:', error);
+    logger.error('Error actualizando sesión de chat:', error);
     res.status(500).json({ error: 'Error al actualizar sesión de chat' });
   }
 });
@@ -1720,7 +1722,7 @@ app.delete('/api/chat-sessions/:chat_id', async (req, res) => {
       res.json({ success: true });
     }
   } catch (error) {
-    console.error('Error eliminando sesión de chat:', error);
+    logger.error('Error eliminando sesión de chat:', error);
     res.status(500).json({ error: 'Error al eliminar sesión de chat' });
   }
 });
@@ -1740,7 +1742,7 @@ app.get('/api/chat-sessions/by-mode/:mode_id', async (req, res) => {
       res.json([]);
     }
   } catch (error) {
-    console.error('Error obteniendo sesiones por modo:', error);
+    logger.error('Error obteniendo sesiones por modo:', error);
     res.status(500).json({ error: 'Error al obtener sesiones por modo' });
   }
 });
@@ -1795,7 +1797,7 @@ app.get('/api/chat-sessions/:chat_id/messages', async (req, res) => {
       res.json({ messages: [] });
     }
   } catch (error) {
-    console.error('Error obteniendo mensajes del chat:', error);
+    logger.error('Error obteniendo mensajes del chat:', error);
     res.status(500).json({ error: 'Error al obtener mensajes del chat' });
   }
 });
@@ -1818,7 +1820,7 @@ app.get('/api/auth/config-check', (req, res) => {
 
 // Endpoint de debug simple para verificar tokens de Calendar
 app.get('/api/debug/calendar-tokens', async (req, res) => {
-  console.log('🔍 DEBUG CALENDAR TOKENS - Sin autenticación');
+  logger.info('🔍 DEBUG CALENDAR TOKENS - Sin autenticación');
   
   try {
     if (!useDatabase || !db) {
@@ -1853,18 +1855,18 @@ app.get('/api/debug/calendar-tokens', async (req, res) => {
       calendarMode: calendarMode[0] || null
     };
     
-    console.log('📊 Debug info:', JSON.stringify(debugInfo, null, 2));
+    logger.info('📊 Debug info:', JSON.stringify(debugInfo, null, 2));
     res.json(debugInfo);
     
   } catch (error) {
-    console.error('❌ Error en debug tokens:', error);
+    logger.error('❌ Error en debug tokens:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Endpoint de debug específico para Calendar + IA
 app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
-  console.log('🔍 DEBUG CALENDAR-AI INICIADO');
+  logger.info('🔍 DEBUG CALENDAR-AI INICIADO');
   
   const debugInfo = {
     timestamp: new Date().toISOString(),
@@ -1887,7 +1889,7 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
       id: userId,
       authenticated: true
     };
-    console.log('✅ Usuario autenticado:', userId);
+    logger.info('✅ Usuario autenticado:', userId);
     
     // 2. Verificar tokens de Calendar
     if (useDatabase && db) {
@@ -1904,11 +1906,11 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
           expiresAt: tokens[0].expires_at,
           isExpired: tokens[0].expires_at ? new Date(tokens[0].expires_at) < new Date() : null
         };
-        console.log('✅ Tokens encontrados:', debugInfo.tokens);
+        logger.info('✅ Tokens encontrados:', debugInfo.tokens);
       } else {
         debugInfo.tokens = { exists: false };
         debugInfo.errors.push('No hay tokens de Calendar guardados');
-        console.log('❌ No hay tokens de Calendar');
+        logger.info('❌ No hay tokens de Calendar');
       }
       
       // 3. Verificar modo Calendar
@@ -1923,11 +1925,11 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
           name: modes[0].name,
           hasFunctions: modes[0].available_functions ? true : false
         };
-        console.log('✅ Modo Calendar configurado');
+        logger.info('✅ Modo Calendar configurado');
       } else {
         debugInfo.calendarMode = { exists: false };
         debugInfo.errors.push('Modo Calendar no existe en BD');
-        console.log('❌ Modo Calendar no encontrado');
+        logger.info('❌ Modo Calendar no encontrado');
       }
       
       // 4. Verificar sesiones de chat
@@ -1955,11 +1957,11 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
           title: calendarSessions[0].title,
           isCalendarMode: calendarSessions[0].mode_id === 'calendar'
         };
-        console.log('✅ Sesión de chat Calendar encontrada:', debugInfo.chatSession);
+        logger.info('✅ Sesión de chat Calendar encontrada:', debugInfo.chatSession);
       } else {
         debugInfo.chatSession = { exists: false };
         debugInfo.errors.push('No hay sesión de chat en modo Calendar');
-        console.log('❌ No hay sesión de chat en modo Calendar');
+        logger.info('❌ No hay sesión de chat en modo Calendar');
       }
     }
     
@@ -1980,12 +1982,12 @@ app.get('/api/debug/calendar-ai', authenticateToken, async (req, res) => {
       issues: debugInfo.errors
     };
     
-    console.log('🔍 DEBUG COMPLETO:', JSON.stringify(debugInfo, null, 2));
+    logger.info('🔍 DEBUG COMPLETO:', JSON.stringify(debugInfo, null, 2));
     
     res.json(debugInfo);
     
   } catch (error) {
-    console.error('❌ Error en debug Calendar-AI:', error);
+    logger.error('❌ Error en debug Calendar-AI:', error);
     debugInfo.errors.push(error.message);
     res.status(500).json(debugInfo);
   }
@@ -2013,18 +2015,18 @@ app.use('/api/auth/*', (req, res, next) => {
 // Configurar auth routes temporalmente sin BD para que funcionen inmediatamente
 const tempAuthRoutes = createAuthRoutes(null);
 app.use('/api/auth', tempAuthRoutes);
-console.log('⏳ Auth routes temporales configuradas (sin BD)');
+logger.info('⏳ Auth routes temporales configuradas (sin BD)');
 
 async function startServer() {
   try {
-    console.log('========================================');
-    console.log('🔧 Iniciando servidor AI Assistant');
-    console.log('========================================');
-    console.log('📍 Variables de entorno:');
-    console.log('   GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ NO CONFIGURADO');
-    console.log('   GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
-    console.log('   JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
-    console.log('========================================');
+    logger.info('========================================');
+    logger.info('🔧 Iniciando servidor AI Assistant');
+    logger.info('========================================');
+    logger.info('📍 Variables de entorno:');
+    logger.info('   GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    logger.info('   GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    logger.info('   JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ NO CONFIGURADO');
+    logger.info('========================================');
     
     await initDatabase();
     
@@ -2035,7 +2037,7 @@ async function startServer() {
       app._router.stack = app._router.stack.filter(layer => {
         // Eliminar solo las rutas que contienen /api/auth
         if (layer.regexp && layer.regexp.toString().includes('\\/api\\/auth')) {
-          console.log('🗑️ Eliminando ruta temporal:', layer.regexp.toString());
+          logger.info('🗑️ Eliminando ruta temporal:', layer.regexp.toString());
           return false;
         }
         return true;
@@ -2057,23 +2059,23 @@ async function startServer() {
           
           setTodosDatabase(db);
           app.use('/api/todos', todosRouter);
-          console.log('✅ Rutas de Todo Lists configuradas con BD');
+          logger.info('✅ Rutas de Todo Lists configuradas con BD');
         } else {
-          console.log('⚠️ Rutas de Todo Lists no configuradas - BD no disponible');
+          logger.info('⚠️ Rutas de Todo Lists no configuradas - BD no disponible');
         }
       } catch (error) {
-        console.error('❌ Error configurando rutas de todos:', error);
+        logger.error('❌ Error configurando rutas de todos:', error);
       }
       
-      console.log('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
-      console.log('📊 DB pasada a auth routes:', !!db);
+      logger.info('✅ Rutas de autenticación RECONFIGURADAS con base de datos');
+      logger.info('📊 DB pasada a auth routes:', !!db);
       
       // Verificar que realmente se pasó la BD
       try {
         const testQuery = await db.execute('SELECT 1 as test');
-        console.log('✅ BD verificada y funcionando en contexto de auth');
+        logger.info('✅ BD verificada y funcionando en contexto de auth');
       } catch (e) {
-        console.error('❌ ERROR: BD no funciona en contexto de auth:', e.message);
+        logger.error('❌ ERROR: BD no funciona en contexto de auth:', e.message);
       }
       
       try {
@@ -2085,7 +2087,7 @@ async function startServer() {
         });
       } catch (e) {}
     } else {
-      console.log('⚠️ Manteniendo rutas de autenticación SIN base de datos');
+      logger.info('⚠️ Manteniendo rutas de autenticación SIN base de datos');
     }
     
     // Catch-all route DEBE ir al final, después de todas las rutas API
@@ -2110,7 +2112,7 @@ async function startServer() {
       console.log(`🟢 Node.js: ${process.version}`);
     });
   } catch (error) {
-    console.error('Error iniciando servidor:', error);
+    logger.error('Error iniciando servidor:', error);
     process.exit(1);
   }
 }

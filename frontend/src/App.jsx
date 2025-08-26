@@ -8,7 +8,10 @@ import CalendarEvents from './components/CalendarEvents';
 import VoiceAssistant from './components/VoiceAssistant';
 import ConversationsList from './components/ConversationsList';
 import SimpleTodoLists from './components/SimpleTodoLists';
+import { createLogger } from './utils/logger';
 import './App.css';
+
+const logger = createLogger('App');
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -41,15 +44,15 @@ function App() {
   useEffect(() => {
     // Verificar soporte de síntesis de voz
     if ('speechSynthesis' in window) {
-      console.log('Síntesis de voz soportada');
+      logger.debug('Síntesis de voz soportada');
       
       // Cargar voces disponibles
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         const spanishVoices = voices.filter(voice => voice.lang.startsWith('es'));
-        console.log('Voces en español disponibles:', spanishVoices.length);
+        logger.debug('Voces en español disponibles:', spanishVoices.length);
         if (spanishVoices.length > 0) {
-          console.log('Primera voz en español:', spanishVoices[0].name);
+          logger.debug('Primera voz en español:', spanishVoices[0].name);
         }
       };
       
@@ -131,7 +134,7 @@ function App() {
           
           // Establecer nuevo timer de 3 segundos
           silenceTimerRef.current = setTimeout(() => {
-            console.log('3 segundos de silencio detectados, deteniendo grabación');
+            logger.debug('3 segundos de silencio detectados, deteniendo grabación');
             if (recognitionRef.current) {
               recognitionRef.current.stop();
               setIsRecording(false);
@@ -148,7 +151,7 @@ function App() {
       };
       
       recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
+        logger.error('Speech recognition error:', event.error);
         // Solo detener si es un error grave
         if (event.error === 'no-speech' || event.error === 'audio-capture') {
           setIsRecording(false);
@@ -158,7 +161,7 @@ function App() {
       
       recognitionRef.current.onend = () => {
         // El estado se manejará en el efecto separado
-        console.log('Recognition ended');
+        logger.debug('Recognition ended');
       };
     }
   }, []);
@@ -175,7 +178,7 @@ function App() {
           try {
             recognitionRef.current.start();
           } catch (err) {
-            console.error('Error restarting recognition:', err);
+            logger.error('Error restarting recognition:', err);
             setIsRecording(false);
           }
         } else {
@@ -222,10 +225,10 @@ function App() {
     } catch (err) {
       // Es normal que no haya conversación previa en la primera carga
       if (err.response && err.response.status === 404) {
-        console.log('Nueva sesión - no hay conversación previa');
+        logger.debug('Nueva sesión - no hay conversación previa');
         setMessages([]); // Limpiar mensajes para nueva conversación
       } else {
-        console.error('Error al cargar conversación:', err);
+        logger.error('Error al cargar conversación:', err);
       }
     }
   };
@@ -280,7 +283,7 @@ function App() {
       
       // Solo leer la respuesta si está habilitado
       if (voiceEnabled && 'speechSynthesis' in window) {
-        console.log('Intentando leer respuesta:', response.data.message.substring(0, 50) + '...');
+        logger.debug('Intentando leer respuesta:', response.data.message.substring(0, 50) + '...');
         
         // Función para leer el mensaje
         const speakMessage = () => {
@@ -301,17 +304,17 @@ function App() {
           );
           if (spanishVoice) {
             utterance.voice = spanishVoice;
-            console.log('Usando voz:', spanishVoice.name);
+            logger.debug('Usando voz:', spanishVoice.name);
           }
           
           // Agregar event listeners para debug
-          utterance.onstart = () => console.log('Iniciando lectura de voz');
-          utterance.onend = () => console.log('Lectura de voz finalizada');
+          utterance.onstart = () => logger.debug('Iniciando lectura de voz');
+          utterance.onend = () => logger.debug('Lectura de voz finalizada');
           utterance.onerror = (event) => {
-            console.error('Error en lectura de voz:', event);
+            logger.error('Error en lectura de voz:', event);
             // En móviles, intentar de nuevo con un click simulado
             if (event.error === 'not-allowed' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-              console.log('Requiere interacción del usuario en móvil');
+              logger.info('Requiere interacción del usuario en móvil');
             }
           };
           
@@ -319,7 +322,7 @@ function App() {
           try {
             window.speechSynthesis.speak(utterance);
           } catch (error) {
-            console.error('Error al intentar hablar:', error);
+            logger.error('Error al intentar hablar:', error);
           }
         };
         
@@ -333,7 +336,7 @@ function App() {
         }
       }
     } catch (err) {
-      console.error('Error sending message:', err);
+      logger.error('Error sending message:', err);
       setError(err.response?.data?.error || 'Error al enviar el mensaje');
     } finally {
       setIsLoading(false);
@@ -354,7 +357,7 @@ function App() {
       }
       recognitionRef.current.stop();
       setIsRecording(false);
-      console.log('Grabación detenida');
+      logger.debug('Grabación detenida');
     } else {
       // Limpiar el campo de texto antes de comenzar nueva grabación (opcional)
       // setInputMessage('');
@@ -363,9 +366,9 @@ function App() {
         recognitionRef.current.start();
         setIsRecording(true);
         setError('');
-        console.log('Grabación iniciada');
+        logger.debug('Grabación iniciada');
       } catch (err) {
-        console.error('Error starting recognition:', err);
+        logger.error('Error starting recognition:', err);
         setError('Error al iniciar el reconocimiento de voz');
       }
     }
@@ -382,7 +385,7 @@ function App() {
       // Limpiar también el último mensaje del asistente
       setLastAssistantMessage('');
     } catch (err) {
-      console.error('Error clearing conversation:', err);
+      logger.error('Error clearing conversation:', err);
       setError('Error al limpiar la conversación');
     }
   };
@@ -398,7 +401,7 @@ function App() {
   const stopSpeaking = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      console.log('Lectura de voz detenida');
+      logger.debug('Lectura de voz detenida');
     }
   };
 
@@ -427,12 +430,12 @@ function App() {
       
       utterance.onstart = () => console.log('Iniciando lectura manual');
       utterance.onend = () => console.log('Lectura manual finalizada');
-      utterance.onerror = (event) => console.error('Error en lectura manual:', event);
+      utterance.onerror = (event) => logger.error('Error en lectura manual:', event);
       
       try {
         window.speechSynthesis.speak(utterance);
       } catch (error) {
-        console.error('Error al reproducir:', error);
+        logger.error('Error al reproducir:', error);
       }
     }
   };
@@ -450,7 +453,7 @@ function App() {
         }
       }
     } catch (error) {
-      console.error('Token inválido:', error);
+      logger.error('Token inválido:', error);
       // Si el token es inválido, limpiar y mostrar login
       handleLogout();
     }
@@ -468,7 +471,7 @@ function App() {
     try {
       await axios.post('/api/auth/logout');
     } catch (error) {
-      console.error('Error en logout:', error);
+      logger.error('Error en logout:', error);
     }
     
     // Limpiar datos locales
@@ -567,12 +570,12 @@ function App() {
                 console.log('✅ Calendar autorizado exitosamente');
                 alert('✅ Google Calendar autorizado exitosamente. Ya puedes agendar reuniones.');
               } else {
-                console.error('Error en respuesta:', response.data);
+                logger.error('Error en respuesta:', response.data);
                 alert('Error al autorizar Calendar: ' + (response.data.error || 'Error desconocido'));
               }
             } catch (error) {
-              console.error('Error procesando código OAuth:', error);
-              console.error('Detalles del error:', error.response?.data);
+              logger.error('Error procesando código OAuth:', error);
+              logger.error('Detalles del error:', error.response?.data);
               const errorMsg = error.response?.data?.details || error.response?.data?.error || error.message;
               alert('Error al autorizar Calendar: ' + errorMsg);
             }
@@ -592,7 +595,7 @@ function App() {
       }
       
     } catch (error) {
-      console.error('Error obteniendo URL de autorización:', error);
+      logger.error('Error obteniendo URL de autorización:', error);
       alert('Error al iniciar autorización');
     }
   };
@@ -797,7 +800,7 @@ function App() {
                 onChange={(e) => {
                   const enabled = e.target.checked;
                   setVoiceEnabled(enabled);
-                  console.log('Lectura de respuestas:', enabled ? 'Activada' : 'Desactivada');
+                  logger.debug('Lectura de respuestas:', enabled ? 'Activada' : 'Desactivada');
                   
                   // Si se activa en móvil, inicializar con una utterance vacía
                   if (enabled && 'speechSynthesis' in window) {
@@ -807,7 +810,7 @@ function App() {
                       initUtterance.volume = 0;
                       window.speechSynthesis.speak(initUtterance);
                       setVoiceInitialized(true);
-                      console.log('Síntesis de voz inicializada en móvil');
+                      logger.debug('Síntesis de voz inicializada en móvil');
                     }
                   } else if (!enabled && 'speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
@@ -824,7 +827,7 @@ function App() {
                 onChange={(e) => {
                   const enabled = e.target.checked;
                   setContextEnabled(enabled);
-                  console.log('Memoria contextual:', enabled ? 'Activada' : 'Desactivada');
+                  logger.debug('Memoria contextual:', enabled ? 'Activada' : 'Desactivada');
                 }}
               />
               <span className="toggle-slider"></span>
