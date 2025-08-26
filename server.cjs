@@ -11,6 +11,8 @@ const jwt = require('jsonwebtoken');
 const GoogleCalendarService = require('./services/googleCalendar.cjs');
 const { createLogger } = require('./utils/backend-logger.cjs');
 const logger = createLogger('Server');
+const { getLogger } = require('./utils/file-logger.cjs');
+const fileLogger = getLogger();
 const { authenticateToken, optionalAuth } = require('./middleware/auth.cjs');
 
 // Las rutas de todos se cargarán dinámicamente si hay BD
@@ -21,8 +23,28 @@ let setTodosDatabase = null;
 // En Plesk, las variables vienen directamente del entorno
 dotenv.config();
 
+// Capturar crashes no manejados
+process.on('uncaughtException', (error) => {
+  fileLogger.crash('UNCAUGHT EXCEPTION - El proceso va a terminar', error);
+  console.error('UNCAUGHT EXCEPTION:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  fileLogger.crash('UNHANDLED REJECTION', { reason, promise });
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Log de inicio
+fileLogger.log('=== SERVIDOR INICIANDO ===', {
+  nodeVersion: process.version,
+  platform: process.platform,
+  pid: process.pid,
+  env: process.env.NODE_ENV || 'development'
+});
 
 // Debug de variables de entorno (solo en desarrollo)
 if (process.env.NODE_ENV !== 'production') {
@@ -252,6 +274,31 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     node_version: process.version
   });
+});
+
+// Endpoints para acceder a los logs de archivo
+app.get('/api/logs/:type', (req, res) => {
+  const { type } = req.params;
+  const lines = parseInt(req.query.lines) || 100;
+  
+  // Solo permitir en desarrollo o con un token especial
+  const authToken = req.query.token;
+  if (process.env.NODE_ENV === 'production' && authToken !== process.env.LOG_ACCESS_TOKEN) {
+    return res.status(403).json({ error: 'No autorizado' });
+  }
+  
+  const logContent = fileLogger.readLastLines(lines, type);
+  res.type('text/plain').send(logContent);
+});
+
+app.post('/api/logs/clear', (req, res) => {
+  const authToken = req.query.token;
+  if (process.env.NODE_ENV === 'production' && authToken !== process.env.LOG_ACCESS_TOKEN) {
+    return res.status(403).json({ error: 'No autorizado' });
+  }
+  
+  const result = fileLogger.clearLogs();
+  res.json({ success: result });
 });
 
 // Endpoint de diagnóstico detallado
@@ -782,12 +829,70 @@ const logger = createLogger('Server');
   }
 };
 
+// Endpoint simplificado de chat para testing
+app.post('/api/chat-simple', async (req, res) => {
+  fileLogger.log('=== INICIO /api/chat-simple ===');
+  
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'message es requerido' });
+    }
+    
+    if (!openaiApiKey || openaiApiKey === 'sk-test-key') {
+      return res.status(503).json({ error: 'OpenAI no configurado' });
+    }
+    
+    // Llamada simple sin contexto ni funciones
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'Eres un asistente útil. Responde en español.' },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    });
+    
+    const response = completion.choices[0].message.content;
+    fileLogger.log('Respuesta simple exitosa');
+    
+    res.json({
+      success: true,
+      message: response
+    });
+    
+  } catch (error) {
+    fileLogger.error('Error en chat-simple', error);
+    res.status(500).json({ 
+      error: 'Error procesando mensaje',
+      details: error.message 
+    });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
-  // Logging inicial
+  // Logging inicial a archivo
+  fileLogger.log('=== INICIO /api/chat ===', {
+    timestamp: new Date().toISOString(),
+    pid: process.pid,
+    headers: req.headers['user-agent'],
+    bodyKeys: Object.keys(req.body || {})
+  });
+  
   logger.info('🚀 POST /api/chat iniciado');
   
   try {
     const { message, session_id, audio_data, conversation_history = [], system_prompt, mode_context = false, mode_id } = req.body;
+    
+    fileLogger.log('Datos recibidos', {
+      hasMessage: !!message,
+      messageLength: message?.length,
+      sessionId: session_id,
+      modeId: mode_id,
+      historyLength: conversation_history?.length
+    });
     
     // Validación temprana
     if (!message || !session_id) {
@@ -1160,6 +1265,17 @@ app.post('/api/chat', async (req, res) => {
     }
 
     logger.info('🤖 Preparando llamada a OpenAI con modelo gpt-4o-mini');
+    
+    fileLogger.log('Preparando llamada a OpenAI', {
+      model: completionParams.model,
+      messageCount: messages.length,
+      hasTools: !!completionParams.tools,
+      temperature: completionParams.temperature,
+      max_tokens: completionParams.max_tokens,
+      apiKeyLength: openaiApiKey?.length || 0,
+      apiKeyPrefix: openaiApiKey?.substring(0, 10) || 'none'
+    });
+    
     logger.info('📊 Estadísticas:', { 
       model: completionParams.model,
       messageCount: messages.length,
@@ -1171,6 +1287,7 @@ app.post('/api/chat', async (req, res) => {
     let completion;
     try {
       logger.info('⏳ Iniciando llamada a OpenAI API...');
+      fileLogger.log('Iniciando llamada a OpenAI API');
       
       // Agregar timeout para evitar que Plesk corte la conexión
       const timeoutPromise = new Promise((_, reject) => 
@@ -1185,7 +1302,9 @@ app.post('/api/chat', async (req, res) => {
       completion = await Promise.race([apiCallPromise, timeoutPromise]);
       
       logger.info('✅ Respuesta recibida de OpenAI');
+      fileLogger.log('Respuesta recibida de OpenAI exitosamente');
     } catch (openaiError) {
+      fileLogger.error('Error en llamada a OpenAI', openaiError);
       logger.error('❌ Error llamando a OpenAI API:', {
         error: openaiError.message,
         status: openaiError.status,
@@ -1381,6 +1500,8 @@ app.post('/api/chat', async (req, res) => {
     };
     
     // Guardar en archivo de log
+    fileLogger.error('ERROR CRÍTICO EN /api/chat', error);
+    fileLogger.log('Detalles del error', errorDetails);
     logger.writeLog('❌ ERROR CRÍTICO EN CHAT:', errorDetails);
     
     // También en consola
