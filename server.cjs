@@ -31,8 +31,25 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  fileLogger.crash('UNHANDLED REJECTION', { reason, promise });
+  // Logging más detallado del rejection
+  const rejectionDetails = {
+    reason: reason instanceof Error ? {
+      message: reason.message,
+      stack: reason.stack,
+      name: reason.name
+    } : reason,
+    reasonType: typeof reason,
+    promiseInfo: promise ? promise.toString() : 'unknown',
+    timestamp: new Date().toISOString()
+  };
+  
+  fileLogger.crash('UNHANDLED REJECTION - Promise rechazada no capturada', rejectionDetails);
   console.error('UNHANDLED REJECTION:', reason);
+  
+  // No salir inmediatamente, dar tiempo para escribir logs
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 const app = express();
@@ -1013,10 +1030,11 @@ app.post('/api/chat', async (req, res) => {
     let userIdForConversation = null;
     
     // Obtener el ID del usuario si está autenticado
+    const authHeader = req.headers['authorization'];
     if (authHeader) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-secret-key-super-segura-cambiar-en-produccion');
         
         if (decoded.google_id) {
           // Es un token con google_id, buscar el ID real del usuario
@@ -1046,15 +1064,18 @@ app.post('/api/chat', async (req, res) => {
     }
     
     if (useDatabase) {
-      // Buscar conversación existente (con o sin user_id según autenticación)
-      const conversationQuery = userIdForConversation
-        ? 'SELECT id FROM conversations WHERE session_id = ? AND user_id = ?'
-        : 'SELECT id FROM conversations WHERE session_id = ?';
-      const conversationParams = userIdForConversation
-        ? [session_id, userIdForConversation]
-        : [session_id];
+      try {
+        fileLogger.log('Buscando conversación en BD', { session_id, userIdForConversation });
         
-      const [conversations] = await db.execute(conversationQuery, conversationParams);
+        // Buscar conversación existente (con o sin user_id según autenticación)
+        const conversationQuery = userIdForConversation
+          ? 'SELECT id FROM conversations WHERE session_id = ? AND user_id = ?'
+          : 'SELECT id FROM conversations WHERE session_id = ?';
+        const conversationParams = userIdForConversation
+          ? [session_id, userIdForConversation]
+          : [session_id];
+          
+        const [conversations] = await db.execute(conversationQuery, conversationParams);
 
       if (conversations.length === 0) {
         // Crear nueva conversación con user_id si está disponible
@@ -1071,11 +1092,21 @@ app.post('/api/chat', async (req, res) => {
         conversationId = conversations[0].id;
       }
 
-      await db.execute(
-        'INSERT INTO messages (conversation_id, role, content, audio_data) VALUES (?, ?, ?, ?)',
-        [conversationId, 'user', message, audio_data || null]
-      );
-    } else {
+        await db.execute(
+          'INSERT INTO messages (conversation_id, role, content, audio_data) VALUES (?, ?, ?, ?)',
+          [conversationId, 'user', message, audio_data || null]
+        );
+        
+        fileLogger.log('Conversación y mensaje guardados en BD');
+      } catch (dbError) {
+        fileLogger.error('Error en operaciones de BD', dbError);
+        logger.error('Error en BD:', dbError.message);
+        // Continuar con memoria si la BD falla
+        useDatabase = false;
+      }
+    }
+    
+    if (!useDatabase) {
       let conversation = inMemoryStore.conversations.get(session_id);
       if (!conversation) {
         conversation = {
