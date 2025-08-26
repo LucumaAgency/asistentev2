@@ -17,10 +17,23 @@ const { authenticateToken, optionalAuth } = require('./middleware/auth.cjs');
 let todosRouter = null;
 let setTodosDatabase = null;
 
+// Cargar variables de entorno del archivo .env si existe (para desarrollo local)
+// En Plesk, las variables vienen directamente del entorno
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Debug de variables de entorno (solo en desarrollo)
+if (process.env.NODE_ENV !== 'production') {
+  logger.debug('Variables de entorno detectadas:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    HAS_OPENAI_KEY: !!process.env.OPENAI_API_KEY,
+    HAS_DB_CONFIG: !!process.env.DB_HOST,
+    GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID
+  });
+}
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -63,8 +76,22 @@ const inMemoryStore = {
   messages: []
 };
 
+// Validar configuración de OpenAI
+// En Plesk, las variables pueden venir sin el dotenv
+const openaiApiKey = process.env.OPENAI_API_KEY;
+
+// Solo mostrar advertencia si realmente no está configurada
+if (!openaiApiKey || openaiApiKey === '' || openaiApiKey === 'sk-test-key') {
+  logger.critical('⚠️ OPENAI_API_KEY no está configurada correctamente');
+  logger.info('💡 En Plesk: Configura la variable en Node.js Settings > Environment variables');
+  logger.info('💡 En local: Configura la variable en el archivo .env');
+} else {
+  // Solo mostrar en desarrollo para confirmar que se detectó
+  logger.info('✅ OpenAI API key detectada:', openaiApiKey.substring(0, 7) + '...');
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
+  apiKey: openaiApiKey || 'sk-dummy-key-for-initialization'
 });
 
 async function createDefaultModes(connection) {
@@ -210,14 +237,67 @@ app.get('/api/logs/calendar', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   const packageJson = require('./package.json');
+  
+  // Verificar el estado real de la API key
+  const apiKeyStatus = process.env.OPENAI_API_KEY ? 
+    (process.env.OPENAI_API_KEY === 'sk-test-key' ? 'test-key' : 'configured') : 
+    'not-configured';
+    
   res.json({
     status: 'ok',
     version: packageJson.version,
     timestamp: new Date().toISOString(),
     database: useDatabase ? 'connected' : 'in-memory',
-    openai: !!process.env.OPENAI_API_KEY ? 'configured' : 'not-configured',
+    openai: apiKeyStatus,
+    environment: process.env.NODE_ENV || 'development',
     node_version: process.version
   });
+});
+
+// Endpoint de diagnóstico detallado
+app.get('/api/diagnostics', optionalAuth, (req, res) => {
+  // Solo permitir en desarrollo o para admins
+  if (process.env.NODE_ENV === 'production' && !req.userId) {
+    return res.status(403).json({ error: 'No autorizado' });
+  }
+  
+  const diagnostics = {
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      PORT: process.env.PORT || 'not set',
+      isPlesk: !!process.env.PLESK_VHOST_ID || !!process.env.PLESK_DOMAIN,
+      pleskDomain: process.env.PLESK_DOMAIN || 'not in plesk'
+    },
+    openai: {
+      hasKey: !!process.env.OPENAI_API_KEY,
+      keyPrefix: process.env.OPENAI_API_KEY ? 
+        (process.env.OPENAI_API_KEY.substring(0, 10) + '...') : 
+        'not set',
+      isTestKey: process.env.OPENAI_API_KEY === 'sk-test-key',
+      keyLength: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
+      isValid: process.env.OPENAI_API_KEY && 
+               process.env.OPENAI_API_KEY.startsWith('sk-') && 
+               process.env.OPENAI_API_KEY.length > 20
+    },
+    database: {
+      configured: !!process.env.DB_HOST,
+      connected: useDatabase,
+      host: process.env.DB_HOST ? 'configured' : 'not set',
+      dbName: process.env.DB_NAME || 'not set'
+    },
+    google: {
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI || 'not set'
+    },
+    server: {
+      uptime: Math.floor(process.uptime()),
+      memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      nodeVersion: process.version
+    }
+  };
+  
+  res.json(diagnostics);
 });
 
 app.get('/api/db-test', async (req, res) => {
@@ -1010,7 +1090,48 @@ app.post('/api/chat', async (req, res) => {
       completionParams.tool_choice = 'auto';
     }
 
-    const completion = await openai.chat.completions.create(completionParams);
+    // Validar que tenemos API key antes de hacer la llamada
+    if (!openaiApiKey || openaiApiKey === '' || openaiApiKey === 'sk-dummy-key-for-initialization') {
+      logger.error('❌ No se puede procesar el chat: OPENAI_API_KEY no está configurada');
+      return res.status(503).json({ 
+        error: 'El servicio de chat no está disponible. Por favor, contacta al administrador.',
+        details: 'OpenAI API key no configurada'
+      });
+    }
+
+    let completion;
+    try {
+      completion = await openai.chat.completions.create(completionParams);
+    } catch (openaiError) {
+      logger.error('❌ Error llamando a OpenAI API:', {
+        error: openaiError.message,
+        status: openaiError.status,
+        type: openaiError.type
+      });
+      
+      // Manejar diferentes tipos de errores de OpenAI
+      if (openaiError.status === 401) {
+        return res.status(503).json({ 
+          error: 'Error de autenticación con el servicio de IA',
+          details: 'API key inválida o expirada'
+        });
+      } else if (openaiError.status === 429) {
+        return res.status(429).json({ 
+          error: 'Límite de uso excedido',
+          details: 'Por favor, intenta nuevamente en unos momentos'
+        });
+      } else if (openaiError.status === 500 || openaiError.status === 502 || openaiError.status === 503) {
+        return res.status(503).json({ 
+          error: 'El servicio de IA está temporalmente no disponible',
+          details: 'Por favor, intenta nuevamente más tarde'
+        });
+      } else {
+        return res.status(500).json({ 
+          error: 'Error procesando tu mensaje',
+          details: openaiError.message || 'Error desconocido'
+        });
+      }
+    }
 
     let assistantMessage = completion.choices[0].message.content;
     
@@ -1116,12 +1237,26 @@ app.post('/api/chat', async (req, res) => {
       ];
       
       // Hacer una segunda llamada para obtener la respuesta final
-      const finalCompletion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: messagesWithTools,
-        temperature: 0.7,
-        max_tokens: 1000
-      });
+      let finalCompletion;
+      try {
+        finalCompletion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: messagesWithTools,
+          temperature: 0.7,
+          max_tokens: 1000
+        });
+      } catch (openaiError) {
+        logger.error('❌ Error en segunda llamada a OpenAI API:', {
+          error: openaiError.message,
+          status: openaiError.status
+        });
+        
+        // Devolver un mensaje de error genérico si falla la segunda llamada
+        return res.status(503).json({ 
+          error: 'Error al procesar la respuesta con herramientas',
+          details: 'No se pudo completar la operación solicitada'
+        });
+      }
       
       assistantMessage = finalCompletion.choices[0].message.content;
     }

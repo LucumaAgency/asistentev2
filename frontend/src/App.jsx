@@ -337,7 +337,42 @@ function App() {
       }
     } catch (err) {
       logger.error('Error sending message:', err);
-      setError(err.response?.data?.error || 'Error al enviar el mensaje');
+      
+      // Manejar diferentes tipos de errores
+      if (err.response) {
+        // El servidor respondió con un código de error
+        const status = err.response.status;
+        const errorMsg = err.response.data?.error || 'Error desconocido';
+        const details = err.response.data?.details || '';
+        
+        if (status === 503) {
+          // Servicio no disponible
+          if (details.includes('OpenAI API key')) {
+            setError('⚠️ El servicio de chat no está configurado. Contacta al administrador para configurar la API de OpenAI.');
+          } else {
+            setError('⚠️ El servicio de IA no está disponible temporalmente. Por favor, intenta más tarde.');
+          }
+        } else if (status === 429) {
+          setError('⏰ Límite de uso excedido. Por favor, espera unos momentos antes de intentar de nuevo.');
+        } else if (status === 502) {
+          setError('🔌 Error de conexión con el servidor. Por favor, verifica tu conexión e intenta de nuevo.');
+        } else if (status === 500) {
+          setError('❌ Error interno del servidor. Por favor, intenta de nuevo.');
+        } else {
+          setError(`Error: ${errorMsg}`);
+        }
+        
+        // Mostrar detalles en la consola para debugging
+        if (details) {
+          logger.debug('Detalles del error:', details);
+        }
+      } else if (err.request) {
+        // La petición se hizo pero no hubo respuesta
+        setError('🔌 No se pudo conectar con el servidor. Verifica tu conexión.');
+      } else {
+        // Error al configurar la petición
+        setError('Error al enviar el mensaje');
+      }
     } finally {
       setIsLoading(false);
     }
