@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
+import { PlusIcon, MessageCircleIcon, MoreVerticalIcon, EditIcon, TrashIcon } from './Icons';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('Sidebar');
@@ -467,7 +468,7 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
       {/* Botón de Mis Conversaciones */}
       {onShowConversations && (
         <div className="sidebar-section">
-          <button 
+          <button
             className="conversations-button"
             onClick={() => {
               onShowConversations();
@@ -476,7 +477,8 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
               }
             }}
           >
-            💬 Mis Conversaciones
+            <MessageCircleIcon className="icon icon-sm" />
+            Mis Conversaciones
           </button>
         </div>
       )}
@@ -485,12 +487,12 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
       <div className="sidebar-section">
         <div className="section-header">
           <h3>MODOS</h3>
-          <button 
+          <button
             className="add-button"
             onClick={() => setIsAddingMode(true)}
             title="Añadir nuevo modo"
           >
-            +
+            <PlusIcon className="icon icon-sm" />
           </button>
         </div>
 
@@ -512,18 +514,18 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
               </div>
               {mode.id !== 'default' && (
                 <div className="mode-menu-container">
-                  <button 
+                  <button
                     className="menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setModeMenuOpen(modeMenuOpen === mode.id ? null : mode.id);
                     }}
                   >
-                    ⋮
+                    <MoreVerticalIcon className="icon icon-sm" />
                   </button>
                   {modeMenuOpen === mode.id && (
                     <div className="mode-dropdown">
-                      <button 
+                      <button
                         className="dropdown-item"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -531,9 +533,10 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                           setModeMenuOpen(null);
                         }}
                       >
+                        <EditIcon className="icon icon-sm" />
                         Editar
                       </button>
-                      <button 
+                      <button
                         className="dropdown-item delete"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -541,6 +544,7 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                           setModeMenuOpen(null);
                         }}
                       >
+                        <TrashIcon className="icon icon-sm" />
                         Eliminar
                       </button>
                     </div>
@@ -594,7 +598,7 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
       <div className="sidebar-section">
         <div className="section-header">
           <h3>CHATS - {currentMode?.name || 'General'}</h3>
-          <button 
+          <button
             className="add-button"
             onClick={() => {
               if (onNewChat) {
@@ -607,7 +611,7 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
             }}
             title="Nuevo chat"
           >
-            +
+            <PlusIcon className="icon icon-sm" />
           </button>
         </div>
 
@@ -643,24 +647,25 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                   <span className="chat-date">{formatDate(chat.timestamp)}</span>
                 </div>
                 <div className="chat-menu-container">
-                  <button 
+                  <button
                     className="menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatMenuOpen(chatMenuOpen === chat.id ? null : chat.id);
                     }}
                   >
-                    ⋮
+                    <MoreVerticalIcon className="icon icon-sm" />
                   </button>
                   {chatMenuOpen === chat.id && (
                     <div className="chat-dropdown">
-                      <button 
+                      <button
                         className="dropdown-item delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteChat(chat.id, currentMode.id);
                         }}
                       >
+                        <TrashIcon className="icon icon-sm" />
                         Eliminar
                       </button>
                       <div className="dropdown-divider"></div>
