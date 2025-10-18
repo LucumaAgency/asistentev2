@@ -8,6 +8,7 @@ import CalendarEvents from './components/CalendarEvents';
 import VoiceAssistant from './components/VoiceAssistant';
 import ConversationsList from './components/ConversationsList';
 import SimpleTodoLists from './components/SimpleTodoLists';
+import { MenuIcon, CalendarIcon, MicIcon, LogOutIcon, PlusIcon } from './components/Icons';
 import { createLogger } from './utils/logger';
 import './App.css';
 
@@ -667,18 +668,19 @@ function App() {
       <div className="app">
         <header className="header">
           <div className="header-row-1">
-            <button 
+            <button
               className="menu-toggle"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             >
-              ☰
+              <MenuIcon className="icon" />
             </button>
             <div className="header-title">
-              <h1>Asistente IA v3.45</h1>
+              <h1>Asistente IA v3.53</h1>
               <p>Modo: {currentMode?.name || 'General'}</p>
             </div>
             {user ? (
               <button onClick={handleLogout} className="logout-button">
+                <LogOutIcon className="icon icon-sm" />
                 Salir
               </button>
             ) : (
@@ -688,28 +690,31 @@ function App() {
             )}
           </div>
           <div className="header-row-2">
-            <button 
+            <button
               className="new-chat-button"
               onClick={handleNewChat}
               title="Nuevo chat"
             >
-              + Nuevo Chat
+              <PlusIcon className="icon icon-sm" />
+              Nuevo Chat
             </button>
             {isAuthenticated && (
-              <button 
+              <button
                 className="calendar-button"
                 onClick={() => setShowCalendarModal(true)}
                 title="Ver eventos de Calendar"
               >
-                📅 <span>Calendar</span>
+                <CalendarIcon className="icon icon-sm" />
+                <span>Calendar</span>
               </button>
             )}
-            <button 
+            <button
               className="voice-assistant-button"
               onClick={() => setShowVoiceAssistant(true)}
               title="Asistente de voz"
             >
-              🎤 <span>Voz</span>
+              <MicIcon className="icon icon-sm" />
+              <span>Voz</span>
             </button>
           </div>
         </header>
