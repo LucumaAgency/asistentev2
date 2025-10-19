@@ -18,6 +18,11 @@ class Logger {
     this.module = module;
   }
 
+  // Alias para debug (compatibilidad)
+  log(...args) {
+    this.debug(...args);
+  }
+
   debug(...args) {
     if (currentLogLevel <= LOG_LEVELS.DEBUG) {
       console.log(`[${this.module}]`, ...args);
