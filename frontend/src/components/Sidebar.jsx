@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/Sidebar.css';
 import { createLogger } from '../utils/logger';
+import { PlusIcon, MessageCircleIcon, EditIcon, TrashIcon, MoreVerticalIcon, XIcon } from './Icons';
 
 const logger = createLogger('Sidebar');
 
@@ -512,14 +513,14 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
               </div>
               {mode.id !== 'default' && (
                 <div className="mode-menu-container">
-                  <button 
+                  <button
                     className="menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setModeMenuOpen(modeMenuOpen === mode.id ? null : mode.id);
                     }}
                   >
-                    ⋮
+                    <MoreVerticalIcon size={16} />
                   </button>
                   {modeMenuOpen === mode.id && (
                     <div className="mode-dropdown">
@@ -643,14 +644,14 @@ const Sidebar = ({ onModeChange, currentMode, messages, isOpen, onClose, onChatS
                   <span className="chat-date">{formatDate(chat.timestamp)}</span>
                 </div>
                 <div className="chat-menu-container">
-                  <button 
+                  <button
                     className="menu-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatMenuOpen(chatMenuOpen === chat.id ? null : chat.id);
                     }}
                   >
-                    ⋮
+                    <MoreVerticalIcon size={16} />
                   </button>
                   {chatMenuOpen === chat.id && (
                     <div className="chat-dropdown">

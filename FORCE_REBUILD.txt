@@ -1,3 +1,8 @@
-Force rebuild for v3.46
-Date: 2025-10-19 00:15
-Changes: Actualizar versión de 3.45 a 3.46 en LoginWithCalendar
+Force rebuild for v3.47
+Date: 2025-10-19 01:00
+Changes: Migración completa a tema light minimal con iconos SVG
+- Nuevo tema light profesional con paleta de colores purple/indigo
+- Iconos SVG minimalistas estilo Feather Icons
+- Fuente Inter en lugar de Montserrat
+- Backgrounds blancos y grises claros
+- Mejor UX y diseño moderno

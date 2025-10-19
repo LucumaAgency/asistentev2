@@ -1,12 +1,12 @@
 .sidebar {
   width: 300px;
   height: 100vh;
-  background: #1a1b1d;
-  border-right: 1px solid rgba(64, 123, 255, 0.2);
+  background: white;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
   position: relative;
 }
 
@@ -36,7 +36,7 @@
 .sidebar-header {
   display: none;
   padding: 15px 20px;
-  border-bottom: 1px solid rgba(64, 123, 255, 0.1);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -44,7 +44,7 @@
 
 .sidebar-header h2 {
   display: none;
-  color: #407BFF;
+  color: #6366f1;
   font-size: 18px;
   font-weight: 600;
   margin: 0;
@@ -58,9 +58,9 @@
   width: 32px;
   height: 32px;
   background: transparent;
-  border: 1px solid rgba(64, 123, 255, 0.3);
+  border: 1px solid rgba(229, 231, 235, 0.8);
   border-radius: 50%;
-  color: #407BFF;
+  color: #6366f1;
   font-size: 18px;
   font-weight: 300;
   cursor: pointer;
@@ -69,14 +69,14 @@
 }
 
 .sidebar-close:hover {
-  background: rgba(64, 123, 255, 0.1);
-  border-color: #407BFF;
+  background: rgba(229, 231, 235, 0.5);
+  border-color: #6366f1;
   transform: scale(1.1);
 }
 
 .sidebar-section {
   padding: 20px;
-  border-bottom: 1px solid rgba(64, 123, 255, 0.1);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
 }
 
 .section-header {
@@ -87,7 +87,7 @@
 }
 
 .section-header h3 {
-  color: #407BFF;
+  color: #6366f1;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -97,7 +97,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #407BFF;
+  background: #6366f1;
   color: #151718;
   border: none;
   font-size: 20px;
@@ -135,7 +135,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #202224;
+  background: #f3f4f6;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
@@ -144,12 +144,12 @@
 
 .mode-item:hover, .chat-item:hover {
   background: #252729;
-  border-color: rgba(64, 123, 255, 0.2);
+  border-color: #e5e7eb;
 }
 
 .mode-item.active, .chat-item.active {
-  background: rgba(64, 123, 255, 0.1);
-  border-color: #407BFF;
+  background: rgba(229, 231, 235, 0.5);
+  border-color: #6366f1;
 }
 
 .mode-info, .chat-info {
@@ -171,7 +171,7 @@
 }
 
 .chat-date {
-  color: #6a6f78;
+  color: #6b7280;
   font-size: 11px;
 }
 
@@ -183,7 +183,7 @@
 .menu-btn {
   background: transparent;
   border: none;
-  color: #6a6f78;
+  color: #6b7280;
   font-size: 20px;
   cursor: pointer;
   padding: 4px 8px;
@@ -192,16 +192,16 @@
 }
 
 .menu-btn:hover {
-  background: rgba(64, 123, 255, 0.1);
-  color: #407BFF;
+  background: rgba(229, 231, 235, 0.5);
+  color: #6366f1;
 }
 
 .chat-dropdown {
   position: absolute;
   right: 0;
   top: 100%;
-  background: #202224;
-  border: 1px solid rgba(64, 123, 255, 0.3);
+  background: #f3f4f6;
+  border: 1px solid rgba(229, 231, 235, 0.8);
   border-radius: 8px;
   padding: 8px 0;
   min-width: 150px;
@@ -220,12 +220,12 @@
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .dropdown-item:hover {
-  background: rgba(64, 123, 255, 0.1);
-  color: #407BFF;
+  background: rgba(229, 231, 235, 0.5);
+  color: #6366f1;
 }
 
 .dropdown-item.delete:hover {
@@ -235,13 +235,13 @@
 
 .dropdown-divider {
   height: 1px;
-  background: rgba(64, 123, 255, 0.2);
+  background: #e5e7eb;
   margin: 4px 0;
 }
 
 .dropdown-label {
   padding: 4px 16px;
-  color: #6a6f78;
+  color: #6b7280;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -256,8 +256,8 @@
   position: absolute;
   right: 0;
   top: 100%;
-  background: #202224;
-  border: 1px solid rgba(64, 123, 255, 0.3);
+  background: #f3f4f6;
+  border: 1px solid rgba(229, 231, 235, 0.8);
   border-radius: 8px;
   padding: 8px 0;
   min-width: 120px;
@@ -277,12 +277,12 @@
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .mode-dropdown .dropdown-item:hover {
-  background: rgba(64, 123, 255, 0.1);
-  color: #407BFF;
+  background: rgba(229, 231, 235, 0.5);
+  color: #6366f1;
 }
 
 .mode-dropdown .dropdown-item.delete:hover {
@@ -306,7 +306,7 @@
 }
 
 .edit-btn:hover {
-  background: rgba(64, 123, 255, 0.2);
+  background: #e5e7eb;
 }
 
 .delete-btn:hover {
@@ -316,9 +316,9 @@
 .mode-form {
   margin-top: 15px;
   padding: 12px;
-  background: #202224;
+  background: #f3f4f6;
   border-radius: 8px;
-  border: 1px solid rgba(64, 123, 255, 0.2);
+  border: 1px solid #e5e7eb;
 }
 
 .mode-input, .mode-textarea {
@@ -326,17 +326,17 @@
   padding: 10px;
   margin-bottom: 10px;
   background: #151718;
-  border: 1px solid rgba(64, 123, 255, 0.2);
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   color: #e0e0e0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .mode-input:focus, .mode-textarea:focus {
-  border-color: #407BFF;
+  border-color: #6366f1;
 }
 
 .mode-textarea {
@@ -358,11 +358,11 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .save-btn {
-  background: #407BFF;
+  background: #6366f1;
   color: #151718;
 }
 
@@ -373,7 +373,7 @@
 
 .cancel-btn {
   background: transparent;
-  color: #6a6f78;
+  color: #6b7280;
   border: 1px solid #2a2d30;
 }
 
@@ -385,7 +385,7 @@
 .no-chats {
   padding: 20px;
   text-align: center;
-  color: #6a6f78;
+  color: #6b7280;
   font-size: 13px;
   font-style: italic;
 }
@@ -410,7 +410,7 @@
 
 .modes-list::-webkit-scrollbar-thumb:hover,
 .chats-list::-webkit-scrollbar-thumb:hover {
-  background: #407BFF;
+  background: #6366f1;
 }
 
 /* Responsive */

@@ -9,6 +9,7 @@ import VoiceAssistant from './components/VoiceAssistant';
 import ConversationsList from './components/ConversationsList';
 import SimpleTodoLists from './components/SimpleTodoLists';
 import { createLogger } from './utils/logger';
+import { CalendarIcon, MicIcon } from './components/Icons';
 import './App.css';
 
 const logger = createLogger('App');
@@ -357,7 +358,7 @@ function App() {
         } else if (status === 502) {
           setError('🔌 Error de conexión con el servidor. Por favor, verifica tu conexión e intenta de nuevo.');
         } else if (status === 500) {
-          setError('❌ Error interno del servidor. Por favor, intenta de nuevo.');
+          setError('Error interno del servidor. Por favor, intenta de nuevo.');
         } else {
           setError(`Error: ${errorMsg}`);
         }
@@ -603,7 +604,7 @@ function App() {
                 
                 setHasCalendarAccess(response.data.hasCalendarAccess || false);
                 console.log('✅ Calendar autorizado exitosamente');
-                alert('✅ Google Calendar autorizado exitosamente. Ya puedes agendar reuniones.');
+                alert('Google Calendar autorizado exitosamente. Ya puedes agendar reuniones.');
               } else {
                 logger.error('Error en respuesta:', response.data);
                 alert('Error al autorizar Calendar: ' + (response.data.error || 'Error desconocido'));
@@ -674,7 +675,7 @@ function App() {
               ☰
             </button>
             <div className="header-title">
-              <h1>Asistente IA v3.46</h1>
+              <h1>Asistente IA v3.47</h1>
               <p>Modo: {currentMode?.name || 'General'}</p>
             </div>
             {user ? (
@@ -701,7 +702,7 @@ function App() {
                 onClick={() => setShowCalendarModal(true)}
                 title="Ver eventos de Calendar"
               >
-                📅 <span>Calendar</span>
+                <CalendarIcon size={16} /> <span>Calendar</span>
               </button>
             )}
             <button 
@@ -709,7 +710,7 @@ function App() {
               onClick={() => setShowVoiceAssistant(true)}
               title="Asistente de voz"
             >
-              🎤 <span>Voz</span>
+              <MicIcon size={16} /> <span>Voz</span>
             </button>
           </div>
         </header>
