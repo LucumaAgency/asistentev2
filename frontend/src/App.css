@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
 * {
   margin: 0;
@@ -7,13 +7,13 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f7fa;
-  color: #1a1a1a;
+  background-color: #151718;
+  color: #407BFF;
   min-height: 100vh;
 }
 
@@ -108,17 +108,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  color: #1a1a1a;
+  color: #407BFF;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(64, 123, 255, 0.2);
 }
 
 .menu-toggle {
   display: none;
-  background: white;
-  border: 1px solid #e5e7eb;
-  color: #6b7280;
+  background: transparent;
+  border: 1px solid rgba(64, 123, 255, 0.3);
+  color: #407BFF;
   font-size: 24px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -127,13 +127,12 @@ body {
 }
 
 .menu-toggle:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  color: #374151;
+  background: rgba(64, 123, 255, 0.1);
+  border-color: #407BFF;
 }
 
 .new-chat-button {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #407BFF 0%, #5B8DEF 100%);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -141,19 +140,16 @@ body {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   margin-left: auto;
   margin-right: 10px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .new-chat-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 5px 15px rgba(64, 123, 255, 0.3);
 }
 
 .new-chat-button:active {
@@ -255,22 +251,22 @@ body {
 }
 
 .chat-container {
-  background: white;
+  background: #1a1b1d;
   border-radius: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   max-height: calc(100vh - 200px);
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(64, 123, 255, 0.2);
 }
 
 .messages-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: #fafbfc;
+  background: #1a1b1d;
 }
 
 .message {
@@ -306,17 +302,16 @@ body {
 }
 
 .message.user .message-content {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
+  background: #407BFF;
+  color: #151718;
   border-bottom-right-radius: 4px;
 }
 
 .message.assistant .message-content {
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e5e7eb;
+  background: #202224;
+  color: #407BFF;
+  border: 1px solid rgba(64, 123, 255, 0.3);
   border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .message-content p {
@@ -334,22 +329,17 @@ body {
 }
 
 .message-content code {
-  background: #f3f4f6;
-  color: #6366f1;
+  background: #0d0e0f;
+  color: #407BFF;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
 }
 
-.message.user .message-content code {
-  background: rgba(255,255,255,0.2);
-  color: white;
-}
-
 .input-container {
   padding: 20px;
-  background: white;
-  border-top: 1px solid #e5e7eb;
+  background: #1a1b1d;
+  border-top: 1px solid rgba(64, 123, 255, 0.2);
 }
 
 .input-form {
@@ -361,19 +351,18 @@ body {
 .message-input {
   flex: 1;
   padding: 12px 20px;
-  border: 2px solid #e5e7eb;
-  background: #f9fafb;
-  color: #1a1a1a;
+  border: 2px solid rgba(64, 123, 255, 0.3);
+  background: #202224;
+  color: #407BFF;
   border-radius: 25px;
   font-size: 16px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   outline: none;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.3s;
 }
 
 .message-input:focus {
-  border-color: #6366f1;
-  background: white;
+  border-color: #407BFF;
 }
 
 .message-input.recording {
@@ -463,10 +452,10 @@ body {
   padding: 12px 24px;
   border: none;
   border-radius: 25px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
+  background: #407BFF;
+  color: #151718;
   font-size: 16px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 500;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -474,7 +463,7 @@ body {
 
 .send-button:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 5px 15px rgba(64, 123, 255, 0.4);
 }
 
 .send-button:disabled {
