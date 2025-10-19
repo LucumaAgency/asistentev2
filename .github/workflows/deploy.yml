@@ -44,21 +44,10 @@ jobs:
       run: |
         # Fetch all branches
         git fetch origin
-        
-        # Check if production branch exists remotely
-        if git ls-remote --exit-code --heads origin production; then
-          echo "Production branch exists, checking out..."
-          # Force checkout to production branch
-          git checkout -f production
-          git reset --hard origin/production
-          
-          # Merge changes from main, preferring main's version for conflicts
-          git merge main --no-edit --strategy-option=theirs || true
-        else
-          echo "Creating production branch..."
-          git checkout -b production
-        fi
-        
+
+        # Create/reset production branch from main
+        git checkout -B production
+
         # Ensure the dist folder is tracked
         echo "Current directory structure:"
         ls -la frontend/
