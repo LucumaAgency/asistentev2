@@ -143,8 +143,8 @@
 }
 
 .mode-item:hover, .chat-item:hover {
-  background: #252729;
-  border-color: #e5e7eb;
+  background: #e5e7eb;
+  border-color: #d1d5db;
 }
 
 .mode-item.active, .chat-item.active {
@@ -161,7 +161,7 @@
 }
 
 .mode-name, .chat-title {
-  color: #e0e0e0;
+  color: #1a1a1a;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;

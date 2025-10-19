@@ -1,8 +1,7 @@
-Force rebuild for v3.47
-Date: 2025-10-19 01:00
-Changes: Migración completa a tema light minimal con iconos SVG
-- Nuevo tema light profesional con paleta de colores purple/indigo
-- Iconos SVG minimalistas estilo Feather Icons
-- Fuente Inter en lugar de Montserrat
-- Backgrounds blancos y grises claros
-- Mejor UX y diseño moderno
+Force rebuild for v3.48
+Date: 2025-10-19 01:10
+Changes: Ajustes de contraste y sombras para mejor UX
+- Texto de modos y chats oscuro (#1a1a1a) para mejor contraste
+- Hover de items más claro (#e5e7eb)
+- Sombra del chat-container reducida (más sutil)
+- Background del messages-container más suave (#fafbfc)

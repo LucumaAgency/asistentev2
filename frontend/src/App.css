@@ -251,20 +251,20 @@ body {
 .chat-container {
   background: white;
   border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   max-height: calc(100vh - 200px);
-  border: 1px solid rgba(229, 231, 235, 0.2);
+  border: 1px solid #e5e7eb;
 }
 
 .messages-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: white;
+  background: #fafbfc;
 }
 
 .message {
